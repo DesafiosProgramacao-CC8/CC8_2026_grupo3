@@ -1,4 +1,4 @@
 Alunos:
-- Julia Francini Barbosa
+- Julia Francini Simon Barbosa
 - Milene Basso de Vargas
 - Robson Luan Theodoro
