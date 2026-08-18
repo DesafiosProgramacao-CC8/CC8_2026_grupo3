@@ -1,0 +1,6 @@
+A ÁRVORE é uma estrutura de dados.
+Uma Árvore pode ser utilizada para organizar informações.
+A busca em uma árvore pode ser mais eficiente.
+Neste projeto vamos utilizar uma árvore para indexar documentos.
+A busca de documentos será realizada utilizando palavras.
+Algoritmos de busca são importantes para encontrar documentos.
