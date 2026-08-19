@@ -1,8 +1,0 @@
-A programação é importante para o desenvolvimento de sistemas.
-Na faculdade, estudamos programação, algoritmos e estruturas de dados.
-A programação permite desenvolver soluções para diferentes problemas.
-Os algoritmos ajudam a organizar as etapas necessárias para resolver um problema.
-Em Ciência da Computação, estruturas de dados são fundamentais para organizar informações.
-Uma árvore é uma estrutura de dados utilizada para armazenar e pesquisar informações.
-A árvore pode tornar determinados tipos de busca mais eficientes.
-Por isso, programação, algoritmos e estruturas de dados são conhecimentos importantes para o desenvolvimento de sistemas.

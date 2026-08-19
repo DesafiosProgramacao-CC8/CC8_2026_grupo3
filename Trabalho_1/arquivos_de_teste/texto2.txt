@@ -1,4 +1,0 @@
-Documentos podem conter muitas informações.
-A busca em documentos depende do conteúdo.
-Um documento pode apresentar palavras repetidas.
-As palavras ajudam a identificar a relevância do documento.

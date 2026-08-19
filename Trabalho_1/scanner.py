@@ -1,29 +1,36 @@
 from pathlib import Path
 
-# Busca imagens dentro da pasta informada e de suas subpastas
-def buscar_imagens(caminho_pasta):
-    pasta = Path(caminho_pasta) #de string vira objeto
-    imagens = [] #para armazenar os caminhos das imagens encontradas
+def buscar_arquivos(caminho_pasta):
+    pasta = Path(caminho_pasta) # transforma o caminho em um objeto Path
 
-    if not pasta.exists(): #verifica se a pasta não existe
+    imagens = [] # armazena os caminhos das imagens encontradas
+    documentos = [] # armazena os caminhos dos documentos encontrados
+
+    if not pasta.exists(): # verifica se a pasta existe
         print("A pasta não existe.")
-        return imagens
+        return imagens, documentos
 
-    if not pasta.is_dir(): #verifica se o caminho informado é uma pasta
+    if not pasta.is_dir(): # verifica se o caminho informado é uma pasta
         print("O caminho informado não é uma pasta.")
-        return imagens
+        return imagens, documentos
 
-    try: 
-        for item in pasta.rglob("*"): # Percorre todos os itens da pasta e de suas subpastas
-            try: # usado para ignorar erros de permissão ao acessar arquivos ou pastas
-                if item.is_file(): # Verifica se o item encontrado é um arquivo
-                    if item.suffix.lower() in [".jpg", ".png"]: # Verifica se o arquivo possui uma das extensões de imagem aceitas
+    try:
+        for item in pasta.rglob("*"): # percorre a pasta e suas subpastas
+            try:
+                if item.is_file(): # verifica se o item é um arquivo
+
+                    extensao = item.suffix.lower()
+
+                    if extensao in [".jpg", ".png"]:
                         imagens.append(item)
-            
-            except PermissionError: # Caso o item não tenha permissão de acesso, ignora e continua a busca
-                continue
 
-    except PermissionError: # Caso o item não tenha permissão de acesso, ignora e continua a busca
+                    elif extensao == ".txt":
+                        documentos.append(item)
+
+            except PermissionError:
+                continue # ignora itens sem permissão e continua
+
+    except PermissionError:
         pass
 
-    return imagens
+    return imagens, documentos
