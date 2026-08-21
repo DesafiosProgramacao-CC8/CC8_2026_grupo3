@@ -121,6 +121,7 @@ while True:
             print("Caminho:", documento.caminho)
             print("Extensão:", documento.extensao)
             print("Tamanho:", documento.tamanho, "bytes")
+            print("Total de palavras:", documento.quantidade_palavras)
             print("Palavras diferentes:", len(documento.frequencia))
         else:
             print("Documento não encontrado.")
