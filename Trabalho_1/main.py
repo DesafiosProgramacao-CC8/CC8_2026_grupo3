@@ -1,10 +1,10 @@
 from indexador import indexar_arquivos
-from documentos import buscar_documentos
+from processador_documentos import buscar_documentos
 
 
 pasta = input("Digite o caminho da pasta: ")
 
-arvore_imagens, documentos = indexar_arquivos(pasta)
+arvore_imagens, arvore_documentos = indexar_arquivos(pasta)
 
 print("\nIndexação concluída!")
 
@@ -14,8 +14,10 @@ while True:
     print("2 - Buscar imagem por extensão")
     print("3 - Buscar imagem por dimensões")
     print("4 - Listar todas as imagens")
-    print("5 - Buscar documentos por conteúdo")
-    print("6 - Listar documentos encontrados")
+    print("5 - Buscar documento por nome")
+    print("6 - Buscar documentos por conteúdo")
+    print("7 - Listar todos os documentos")
+    print("8 - Ver informações de um documento")
     print("0 - Sair")
 
     opcao = input("\nEscolha: ")
@@ -34,8 +36,11 @@ while True:
         extensao = input("Extensão (.jpg ou .png): ")
         resultados = arvore_imagens.buscar_extensao(extensao)
 
-        for imagem in resultados:
-            print(imagem)
+        if len(resultados) == 0:
+            print("Nenhuma imagem encontrada.")
+        else:
+            for imagem in resultados:
+                print(imagem)
 
     elif opcao == "3":
         largura = int(input("Largura: "))
@@ -46,27 +51,57 @@ while True:
             altura
         )
 
-        for imagem in resultados:
-            print(imagem)
+        if len(resultados) == 0:
+            print("Nenhuma imagem encontrada.")
+        else:
+            for imagem in resultados:
+                print(imagem)
 
     elif opcao == "4":
-        for imagem in arvore_imagens.listar_imagens():
-            print(imagem)
+        imagens = arvore_imagens.listar_imagens()
+
+        if len(imagens) == 0:
+            print("Nenhuma imagem encontrada.")
+        else:
+            for imagem in imagens:
+                print(imagem)
 
     elif opcao == "5":
+        nome = input("Nome do documento: ")
+
+        resultado = arvore_documentos.buscar_nome(nome)
+
+        if resultado:
+            print("Nome:", resultado.nome)
+            print("Caminho:", resultado.caminho)
+        else:
+            print("Documento não encontrado.")
+
+    elif opcao == "6":
         termo = input("Digite uma palavra para pesquisar: ")
 
-        resultados = buscar_documentos(documentos, termo)
+        documentos = arvore_documentos.listar_documentos()
+
+        resultados = buscar_documentos(
+            documentos,
+            termo
+        )
 
         print("\nResultados da busca:")
 
         if len(resultados) == 0:
             print("Termo '" + termo + "' não encontrado em nenhum documento.")
         else:
-            for nome, relevancia in resultados:
-                print(nome, "- relevância:", relevancia)
+            for documento, relevancia in resultados:
+                print(
+                    documento.nome,
+                    "- relevância:",
+                    relevancia
+                )
 
-    elif opcao == "6":
+    elif opcao == "7":
+        documentos = arvore_documentos.listar_documentos()
+
         if len(documentos) == 0:
             print("Nenhum documento .txt encontrado.")
         else:
@@ -75,5 +110,23 @@ while True:
             for documento in documentos:
                 print(documento)
 
+    elif opcao == "8":
+        nome = input("Nome do documento: ")
+
+        documento = arvore_documentos.buscar_nome(nome)
+
+        if documento:
+            print("\nInformações do documento:")
+            print("Nome:", documento.nome)
+            print("Caminho:", documento.caminho)
+            print("Extensão:", documento.extensao)
+            print("Tamanho:", documento.tamanho, "bytes")
+            print("Palavras diferentes:", len(documento.frequencia))
+        else:
+            print("Documento não encontrado.")
+
     elif opcao == "0":
         break
+
+    else:
+        print("Opção inválida.")

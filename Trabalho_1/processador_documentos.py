@@ -1,5 +1,7 @@
 import string
 
+from arquivo_documento import DocumentoArquivo
+
 
 def ler_documento(caminho):
     arquivo = open(caminho, "r", encoding="utf-8")
@@ -15,6 +17,7 @@ def tratar_texto(conteudo):
         str.maketrans("", "", string.punctuation)
     )
     palavras = conteudo_limpo.split() #separa o texto em palavras dentro de uma lista
+
     return palavras
 
 
@@ -30,6 +33,19 @@ def contar_palavras(palavras):
     return frequencia
 
 
+def criar_documento(caminho):
+    conteudo = ler_documento(caminho)
+    palavras = tratar_texto(conteudo)
+    frequencia = contar_palavras(palavras)
+
+    documento = DocumentoArquivo(
+        caminho,
+        frequencia
+    )
+
+    return documento
+
+
 def calcular_relevancia(frequencia, termo):
     termo = termo.lower()
 
@@ -40,22 +56,18 @@ def calcular_relevancia(frequencia, termo):
 
 
 def buscar_documentos(documentos, termo):
-    resultados = [] #armazena os resultados da busca por meio do nome e relevancia
+    resultados = [] #armazena os resultados da busca por meio do documento e relevancia
 
     for documento in documentos:
-        try:
-            conteudo = ler_documento(documento) #lê o conteúdo do documento
-            palavras = tratar_texto(conteudo) #trata e separa o conteúdo em palavras
-            frequencia = contar_palavras(palavras) #conta a frequência das palavras
-            relevancia = calcular_relevancia(frequencia, termo) #calcula a relevância do documento
+        relevancia = calcular_relevancia(
+            documento.frequencia,
+            termo
+        ) #calcula a relevância do documento
 
-            if relevancia > 0: # adiciona apenas documentos que possuem o termo pesquisado
-                resultados.append(
-                    (documento.name, relevancia)
-                )
-
-        except (PermissionError, OSError):
-            continue
+        if relevancia > 0: # adiciona apenas documentos que possuem o termo pesquisado
+            resultados.append(
+                (documento, relevancia)
+            )
 
     resultados.sort( #ordena os resultados pela relevância, do maior para o menor
         key=lambda resultado: resultado[1],
