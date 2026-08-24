@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>iffagle</title>
+    <!-- Estilos -->
+    <style>
+        *{box-sizing:border-box}
+        body{margin:0;background:#f3efe8;color:#27251f;font-family:Arial,sans-serif}
+        main{width:min(100% - 32px,920px);margin:36px auto}
+        h1{margin:0 0 18px;color:#4d563d;font-size:40px;text-align:center}
+        h2{margin:0 0 6px;font-size:19px;overflow-wrap:anywhere}
+        .painel,.resultado,.msg{margin-bottom:16px;padding:18px;border:1px solid #ddd4c8;border-radius:10px;background:#fffaf4;box-shadow:0 8px 20px #00000014}
+        .escolher{text-align:center}
+        .painel form+form{margin-top:14px}
+        .linha{display:grid;grid-template-columns:1fr auto auto;gap:10px;margin-bottom:14px}
+        .linha-busca{grid-template-columns:1fr 150px auto}
+        label{display:block;margin-bottom:6px;font-weight:bold}
+        input,select,button,.botao{min-height:42px;border:1px solid #cfc4b6;border-radius:7px;font:inherit}
+        input,select{width:100%;padding:0 12px;background:white}
+        button,.botao{display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border-color:#a67c52;background:#a67c52;color:white;text-decoration:none;cursor:pointer}
+        .botao{background:white;color:#8a623e}
+        .info,.total,.caminho,small{color:#666057}
+        .resultado{display:grid;grid-template-columns:82px 1fr auto;gap:14px;align-items:center}
+        .thumb,.txt{width:82px;height:82px;border:1px solid #ddd4c8;border-radius:8px}
+        .thumb{object-fit:cover}.txt{display:grid;place-items:center;background:#eee7df;color:#4d563d;font-weight:bold}
+        .caminho{overflow-wrap:anywhere}
+        @media(max-width:680px){.linha,.linha-busca,.resultado{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+    <main>
+        <!-- Título principal do sistema -->
+        <h1>Iffagle</h1>
+
+        <!-- Mostra mensagens enviadas pelo Flask, como erros de validação -->
+        {% for mensagem in get_flashed_messages() %}
+            <p class="msg">{{ mensagem }}</p>
+        {% endfor %}
+
+        <!-- Painel com a escolha da pasta e o formulário de busca -->
+        <section class="painel">
+            <!-- Botão que abre o seletor visual de pasta no computador -->
+            <form class="escolher" action="{{ url_for('selecionar_pasta') }}" method="post">
+                <button type="submit">Escolher pasta no PC</button>
+            </form>
+
+            <!-- Alternativa para informar o caminho manualmente -->
+            <form method="post">
+                <label for="pasta">Ou informe o caminho da pasta</label>
+                <div class="linha">
+                    <input id="pasta" name="pasta" value="{{ pasta or '' }}" placeholder="Ex: C:\Users\robso\Documents" required>
+                    <button>Buscar</button>
+                </div>
+            </form>
+
+            <!-- Formulário de pesquisa com filtro por tipo de arquivo -->
+            <form method="get">
+                <label for="termo">Buscar arquivo</label>
+                <div class="linha linha-busca">
+                    <input id="termo" name="termo" value="{{ termo or '' }}" placeholder="Digite uma palavra">
+                    <select name="tipo">
+                        <option value="todos" {% if tipo == "todos" %}selected{% endif %}>Todos</option>
+                        <option value="imagens" {% if tipo == "imagens" %}selected{% endif %}>Imagens</option>
+                        <option value="documentos" {% if tipo == "documentos" %}selected{% endif %}>Documentos</option>
+                    </select>
+                    <button>Buscar</button>
+                </div>
+            </form>
+
+            {% if pasta %}
+                <p class="info">Pasta atual: {{ pasta }}</p>
+            {% endif %}
+        </section>
+
+        <!-- Lista os resultados somente depois que uma busca é feita -->
+        {% if resultados is not none %}
+            <p class="total">{{ resultados|length }} resultado(s)</p>
+
+            {% for item in resultados %}
+                <!-- Card de cada arquivo encontrado -->
+                <article class="resultado">
+                    <!-- Imagens mostram pré-visualização; documentos mostram um marcador TXT -->
+                    {% if item.tipo == "imagem" %}
+                        <img class="thumb" src="{{ url_for('preview', caminho=item.caminho) }}" alt="{{ item.nome }}">
+                    {% else %}
+                        <span class="txt">TXT</span>
+                    {% endif %}
+
+                    <div>
+                        <!-- Dados principais do arquivo -->
+                        <h2>{{ item.nome }}</h2>
+                        <p class="caminho">{{ item.caminho }}</p>
+                        <small>
+                            {{ item.tipo }} | {{ item.tamanho }} bytes
+                            {% if item.tipo == "documento" %}
+                                | {{ item.quantidade_palavras }} palavras
+                                {% if item.relevancia is not none %}| relevância {{ item.relevancia }}{% endif %}
+                            {% else %}
+                                | {{ item.formato or item.extensao }} | {{ item.largura or "?" }}x{{ item.altura or "?" }}
+                            {% endif %}
+                        </small>
+                    </div>
+
+                    <!-- Botão que pede ao Flask para abrir o arquivo no sistema -->
+                    <form action="{{ url_for('abrir') }}" method="post">
+                        <input type="hidden" name="caminho" value="{{ item.caminho }}">
+                        <button>Abrir</button>
+                    </form>
+                </article>
+            {% else %}
+                <p class="msg">Nenhum arquivo encontrado.</p>
+            {% endfor %}
+        {% endif %}
+    </main>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Framework usado para criar a interface Web local
+Flask>=3.0
+
+# Biblioteca usada para ler metadados das imagens
+Pillow>=10.0

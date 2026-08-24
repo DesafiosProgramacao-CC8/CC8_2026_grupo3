@@ -1,0 +1,9 @@
+# Ignora arquivos automáticos gerados pelo Python
+__pycache__/
+*.py[cod]
+.Python
+
+# Ignora ambientes virtuais locais
+.venv/
+venv/
+env/
