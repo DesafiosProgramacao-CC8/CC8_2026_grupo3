@@ -4,6 +4,11 @@ Alunos:
 - Robson Luan Theodoro
 
 -----------------------------------------------------------------------------
+LINK DO RELATORIO EM PDF
+-----------------------------------------------------------------------------
+https://drive.google.com/file/d/1_y2L0P3eMyWLvv5ioDot8iumu8o952jt/view?usp=sharing 
+
+-----------------------------------------------------------------------------
 BIBLIOTECAS NECESSÁRIAS
 -----------------------------------------------------------------------------
 A biblioteca Pillow é utilizada para abrir imagens e extrair informações que não são fornecidas diretamente pelo pathlib.
