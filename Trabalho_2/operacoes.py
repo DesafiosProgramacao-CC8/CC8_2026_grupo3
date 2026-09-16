@@ -1,6 +1,7 @@
 from tabela import Tabela
 from coluna import Coluna
 from registro import Registro
+from erros import ErroIFFARQL
 
 from tipos.inteiro import Inteiro
 from tipos.decimal import Decimal
@@ -27,13 +28,13 @@ def criar_tipo(nome_tipo):
         return Booleano()
 
     else:
-        raise Exception("Tipo de dado inválido")
+        raise ErroIFFARQL("Tipo de dado inválido")
 
 
 def criar_tabela(banco, nome_tabela, definicoes):
 
     if banco.existe_tabela(nome_tabela):
-        raise Exception("Tabela já existe")
+        raise ErroIFFARQL("Tabela já existe")
 
     tabela = Tabela(nome_tabela)
 
@@ -49,12 +50,12 @@ def criar_tabela(banco, nome_tabela, definicoes):
         if chave_estrangeira is not None:
 
             if tipo_coluna != "INTEIRO":
-                raise Exception(
+                raise ErroIFFARQL(
                     "Chave estrangeira só pode ser do tipo INTEIRO"
                 )
 
             if not banco.existe_tabela(chave_estrangeira):
-                raise Exception(
+                raise ErroIFFARQL(
                     "Tabela de referência não encontrada"
                 )
 
@@ -74,12 +75,12 @@ def criar_tabela(banco, nome_tabela, definicoes):
 def apagar_tabela(banco, nome_tabela):
 
     if not banco.existe_tabela(nome_tabela):
-        raise Exception("Tabela não encontrada")
+        raise ErroIFFARQL("Tabela não encontrada")
 
     tabela = banco.buscar_tabela(nome_tabela)
 
     if not tabela.arvore.esta_vazia():
-        raise Exception(
+        raise ErroIFFARQL(
             "Não é possível apagar uma tabela com registros"
         )
 
@@ -91,7 +92,7 @@ def apagar_tabela(banco, nome_tabela):
         for coluna in outra_tabela.colunas:
 
             if coluna.chave_estrangeira == nome_tabela:
-                raise Exception(
+                raise ErroIFFARQL(
                     "Não é possível apagar uma tabela referenciada por chave estrangeira"
                 )
 
@@ -101,7 +102,7 @@ def apagar_tabela(banco, nome_tabela):
 def inserir_em(banco, nome_tabela, valores):
 
     if not banco.existe_tabela(nome_tabela):
-        raise Exception("Tabela não encontrada")
+        raise ErroIFFARQL("Tabela não encontrada")
 
     tabela = banco.buscar_tabela(nome_tabela)
 
@@ -109,7 +110,7 @@ def inserir_em(banco, nome_tabela, valores):
     colunas = tabela.colunas[1:]
 
     if len(valores) != len(colunas):
-        raise Exception(
+        raise ErroIFFARQL(
             "Quantidade de valores inválida"
         )
 
@@ -118,12 +119,12 @@ def inserir_em(banco, nome_tabela, valores):
     for coluna, valor in zip(colunas, valores):
 
         if valor is None:
-            raise Exception(
+            raise ErroIFFARQL(
                 "Valores nulos não são permitidos"
             )
 
         if not coluna.validar_valor(valor):
-            raise Exception(
+            raise ErroIFFARQL(
                 f"Valor inválido para a coluna {coluna.nome}"
             )
 
@@ -139,7 +140,7 @@ def inserir_em(banco, nome_tabela, valores):
             )
 
             if registro_referenciado is None:
-                raise Exception(
+                raise ErroIFFARQL(
                     "Chave estrangeira inexistente"
                 )
 

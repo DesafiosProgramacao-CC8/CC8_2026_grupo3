@@ -1,0 +1,2 @@
+class ErroIFFARQL(Exception):
+    pass
