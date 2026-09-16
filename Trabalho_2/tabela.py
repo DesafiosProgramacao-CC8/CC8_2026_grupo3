@@ -35,3 +35,12 @@ class Tabela:
 
     def definir_proximo_id(self, valor):
         self.proximo_id = valor
+
+    def para_dict(self):
+        return {
+            "nome": self.nome,
+            "proximo_id": self.proximo_id
+        }
+
+    def carregar_proximo_id(self, dados):
+        self.proximo_id = dados["proximo_id"]
