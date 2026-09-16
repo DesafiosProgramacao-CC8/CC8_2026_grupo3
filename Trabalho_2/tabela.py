@@ -1,5 +1,6 @@
 from coluna import Coluna
 from tipos.inteiro import Inteiro
+from arvore import ArvoreRegistros
 
 class Tabela:
     def __init__(self, nome):
@@ -8,6 +9,7 @@ class Tabela:
             Coluna("id", Inteiro())
         ]
         self.proximo_id = 1
+        self.arvore = ArvoreRegistros()
 
     def adicionar_coluna(self, coluna):
         if coluna.nome=="id":

@@ -3,3 +3,6 @@ class Coluna:
         self.nome = nome
         self.tipo = tipo
         self.chave_estrangeira = chave_estrangeira
+
+    def validar_valor(self, valor):
+        return self.tipo.validar(valor)
