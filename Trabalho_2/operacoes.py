@@ -2,6 +2,7 @@ from tabela import Tabela
 from coluna import Coluna
 from registro import Registro
 from erros import ErroIFFARQL
+from token import Token
 
 from tipos.inteiro import Inteiro
 from tipos.decimal import Decimal
@@ -106,7 +107,7 @@ def inserir_em(banco, nome_tabela, valores):
 
     tabela = banco.buscar_tabela(nome_tabela)
 
-    # Ignora a coluna id, pois ela é automática
+    # Ignora a coluna id, pois ela é criada automaticamente
     colunas = tabela.colunas[1:]
 
     if len(valores) != len(colunas):
@@ -116,12 +117,26 @@ def inserir_em(banco, nome_tabela, valores):
 
     dados = {}
 
-    for coluna, valor in zip(colunas, valores):
+    for coluna, token in zip(colunas, valores):
+
+        if not isinstance(token, Token):
+            raise ErroIFFARQL(
+                "Valor inválido"
+            )
+
+        valor = token.valor
 
         if valor is None:
             raise ErroIFFARQL(
                 "Valores nulos não são permitidos"
             )
+
+        # TEXTO obrigatoriamente deve ter vindo entre aspas
+        if isinstance(coluna.tipo, Texto):
+            if not token.com_aspas:
+                raise ErroIFFARQL(
+                    "Valores do tipo TEXTO devem estar entre aspas"
+                )
 
         if not coluna.validar_valor(valor):
             raise ErroIFFARQL(

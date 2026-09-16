@@ -1,6 +1,7 @@
 from banco import BancoDados
 from operacoes import criar_tabela, inserir_em, apagar_tabela
 from erros import ErroIFFARQL
+from token import Token
 
 
 banco = BancoDados()
@@ -32,8 +33,8 @@ cliente1 = inserir_em(
     banco,
     "cliente",
     [
-        "Maria",
-        20
+        Token("Maria", True),
+        Token(20, False)
     ]
 )
 
@@ -67,8 +68,8 @@ pedido1 = inserir_em(
     banco,
     "pedido",
     [
-        "Pedido teste",
-        1
+        Token("Pedido teste", True),
+        Token(1, False)
     ]
 )
 
@@ -102,8 +103,8 @@ try:
         banco,
         "pedido",
         [
-            "Pedido invalido",
-            50
+            Token("Pedido invalido", True),
+            Token(50, False)
         ]
     )
 
@@ -118,8 +119,8 @@ try:
         banco,
         "cliente",
         [
-            "Joao",
-            "25"
+            Token("Joao", True),
+            Token("25", True)
         ]
     )
 
@@ -134,7 +135,7 @@ try:
         banco,
         "cliente",
         [
-            "Joao"
+            Token("Joao", True)
         ]
     )
 
@@ -149,13 +150,47 @@ try:
         banco,
         "cliente",
         [
-            None,
-            25
+            Token(None, True),
+            Token(25, False)
         ]
     )
 
 except ErroIFFARQL as erro:
     print("Erro esperado:", erro)
+
+
+print("\n=== TESTANDO TEXTO SEM ASPAS ===")
+
+try:
+    inserir_em(
+        banco,
+        "cliente",
+        [
+            Token("Joao", False),
+            Token(25, False)
+        ]
+    )
+
+except ErroIFFARQL as erro:
+    print("Erro esperado:", erro)
+
+
+print("\n=== TESTANDO TEXTO COM ASPAS ===")
+
+try:
+    cliente_texto = inserir_em(
+        banco,
+        "cliente",
+        [
+            Token("Carlos", True),
+            Token(30, False)
+        ]
+    )
+
+    print(cliente_texto.valores)
+
+except ErroIFFARQL as erro:
+    print("Erro inesperado:", erro)
 
 
 print("\n=== TESTANDO APAGAR TABELA COM REGISTROS ===")
@@ -265,14 +300,48 @@ except ErroIFFARQL as erro:
     print("Erro esperado:", erro)
 
 
+print("\n=== TESTANDO DISTINCAO ENTRE TEXTO, INTEIRO E DECIMAL ===")
+
+criar_tabela(
+    banco,
+    "teste_tipos",
+    [
+        {
+            "nome": "texto",
+            "tipo": "TEXTO"
+        },
+        {
+            "nome": "inteiro",
+            "tipo": "INTEIRO"
+        },
+        {
+            "nome": "decimal",
+            "tipo": "DECIMAL"
+        }
+    ]
+)
+
+registro_tipos = inserir_em(
+    banco,
+    "teste_tipos",
+    [
+        Token("20", True),
+        Token(20, False),
+        Token(20.0, False)
+    ]
+)
+
+print(registro_tipos.valores)
+
+
 print("\n=== TESTANDO PROXIMO ID ===")
 
 cliente2 = inserir_em(
     banco,
     "cliente",
     [
-        "Carlos",
-        30
+        Token("Ana", True),
+        Token(22, False)
     ]
 )
 
@@ -280,8 +349,8 @@ cliente3 = inserir_em(
     banco,
     "cliente",
     [
-        "Ana",
-        22
+        Token("Pedro", True),
+        Token(28, False)
     ]
 )
 
