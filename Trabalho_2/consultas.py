@@ -1,5 +1,6 @@
 from condicoes import avaliar_condicao
 from erros import ErroIFFARQL
+from condicoes import avaliar_condicao, buscar_coluna, validar_token
 
 # Mostra um registro com todos os seus campos, incluindo o id.
 def exibir_registro(registro):
@@ -75,3 +76,72 @@ def apagar_dados(banco, nome_tabela, nome_coluna=None, operador=None, token=None
         tabela.arvore.remover(id_registro)
 
     return len(ids_para_remover)
+
+# Atualiza o valor de uma coluna nos registros que atendem à condição ONDE.
+def atualizar_dados(banco, nome_tabela, nome_coluna_atualizar, novo_token, nome_coluna_condicao=None, operador=None, token_condicao=None):
+    tabela = banco.buscar_tabela(nome_tabela)
+
+    # O campo id é automático e nunca pode ser modificado.
+    if nome_coluna_atualizar == "id":
+        raise ErroIFFARQL(
+            "O campo id não pode ser alterado."
+        )
+    
+    coluna = buscar_coluna(
+        tabela,
+        nome_coluna_atualizar
+    )
+
+    novo_valor = novo_token.obter_valor()
+
+    # Impede a atualização de uma coluna com valor nulo.
+    if novo_valor is None:
+        raise ErroIFFARQL(
+            "Valores nulos não são permitidos."
+        )
+
+    # Valida o tipo e o uso de aspas do novo valor.
+    validar_token(
+        coluna,
+        novo_token
+    )
+
+    registros = tabela.arvore.listar_registros()
+    registros_para_atualizar = []
+
+    # Primeiro seleciona todos os registros que deverão ser atualizados.
+    for registro in registros:
+        # Sem ONDE, todos os registros são selecionados.
+        if nome_coluna_condicao is None:
+            registros_para_atualizar.append(registro)
+
+        # Com ONDE, seleciona somente os registros que atendem à condição.
+        else:
+            atende_condicao = avaliar_condicao(
+                tabela,
+                registro,
+                nome_coluna_condicao,
+                operador,
+                token_condicao
+            )
+            if atende_condicao:
+                registros_para_atualizar.append(registro)
+
+    # Se a coluna atualizada for FK, valida todas as referências antes de alterar.
+    if coluna.chave_estrangeira is not None:
+        tabela_referenciada = banco.buscar_tabela(
+            coluna.chave_estrangeira
+        )
+        registro_referenciado = tabela_referenciada.arvore.buscar(
+            novo_valor
+        )
+        if registro_referenciado is None:
+            raise ErroIFFARQL(
+                "Chave estrangeira inexistente."
+            )
+
+    # Somente depois das validações aplica a atualização.
+    for registro in registros_para_atualizar:
+        registro.valores[nome_coluna_atualizar] = novo_valor
+
+    return len(registros_para_atualizar)
