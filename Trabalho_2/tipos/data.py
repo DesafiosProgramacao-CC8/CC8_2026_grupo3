@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 from .tipo_dado import TipoDado
+from erros import ErroIFFARQL
 
 class Data(TipoDado):
     def validar(self, valor):
@@ -49,3 +51,42 @@ class Data(TipoDado):
             return False
 
         return True
+
+# Soma ou subtrai uma quantidade inteira de dias de uma DATA.
+
+    def operar(self, valor_atual, operador, valor_operacao):
+
+        if not isinstance(valor_operacao, int) or isinstance(valor_operacao, bool):
+
+            raise ErroIFFARQL(
+
+                "DATA somente pode ser operada com um valor INTEIRO."
+
+            )
+
+        # Confirma que a data original é válida antes de realizar a operação.
+        if not self.validar(valor_atual):
+            raise ErroIFFARQL(
+                "Valor de DATA inválido."
+            )
+
+        data = datetime.strptime(
+            valor_atual,
+            "%d/%m/%Y"
+        )
+        if operador == "+":
+            resultado = data + timedelta(
+                days=valor_operacao
+            )
+        elif operador == "-":
+            resultado = data - timedelta(
+                days=valor_operacao
+            )
+        else:
+            raise ErroIFFARQL(
+                f"Operador '{operador}' não permitido para DATA."
+            )
+
+        return resultado.strftime(
+            "%d/%m/%Y"
+        )

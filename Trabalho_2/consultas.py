@@ -1,4 +1,3 @@
-from condicoes import avaliar_condicao
 from erros import ErroIFFARQL
 from condicoes import avaliar_condicao, buscar_coluna, validar_token
 
@@ -143,5 +142,191 @@ def atualizar_dados(banco, nome_tabela, nome_coluna_atualizar, novo_token, nome_
     # Somente depois das validações aplica a atualização.
     for registro in registros_para_atualizar:
         registro.valores[nome_coluna_atualizar] = novo_valor
+
+    return len(registros_para_atualizar)
+
+# Atualiza uma coluna aplicando uma operação sobre o valor atual dos registros.
+def atualizar_com_operacao(banco, nome_tabela, nome_coluna_atualizar, operador_operacao, token_operacao, nome_coluna_condicao=None, operador_condicao=None, token_condicao=None):
+    tabela = banco.buscar_tabela(nome_tabela)
+
+    # O campo id é automático e não pode ser alterado.
+    if nome_coluna_atualizar == "id":
+        raise ErroIFFARQL(
+            "O campo id não pode ser alterado."
+        )
+    coluna = buscar_coluna(
+        tabela,
+        nome_coluna_atualizar
+    )
+
+    valor_operacao = token_operacao.obter_valor()
+
+    # Valores nulos não podem participar de operações.
+    if valor_operacao is None:
+        raise ErroIFFARQL(
+            "Valores nulos não são permitidos."
+        )
+
+    registros = tabela.arvore.listar_registros()
+    registros_para_atualizar = []
+
+    # Primeiro seleciona todos os registros que atendem ao ONDE.
+    for registro in registros:
+        if nome_coluna_condicao is None:
+            registros_para_atualizar.append(registro)
+        else:
+            atende_condicao = avaliar_condicao(
+                tabela,
+                registro,
+                nome_coluna_condicao,
+                operador_condicao,
+                token_condicao
+            )
+
+            if atende_condicao:
+                registros_para_atualizar.append(registro)
+
+    novos_valores = []
+
+    # Calcula e valida todos os novos valores antes de modificar os registros.
+    for registro in registros_para_atualizar:
+        valor_atual = registro.valores[
+            nome_coluna_atualizar
+        ]
+
+        novo_valor = coluna.tipo.operar(
+            valor_atual,
+            operador_operacao,
+            valor_operacao
+        )
+
+        if not coluna.validar_valor(novo_valor):
+            raise ErroIFFARQL(
+                f"Resultado inválido para a coluna '{nome_coluna_atualizar}'."
+            )
+        novos_valores.append(
+            (registro, novo_valor)
+        )
+
+    # Somente após validar todos os resultados, aplica as alterações.
+    for registro, novo_valor in novos_valores:
+        registro.valores[
+            nome_coluna_atualizar
+        ] = novo_valor
+
+    return len(novos_valores)
+
+# Realiza várias atualizações como uma única operação.
+def atualizar_multiplos(banco, nome_tabela, atualizacoes, nome_coluna_condicao=None, operador_condicao=None, token_condicao=None):
+    tabela = banco.buscar_tabela(nome_tabela)
+    registros = tabela.arvore.listar_registros()
+    registros_para_atualizar = []
+
+    # Primeiro seleciona os registros que atendem à condição ONDE.
+    for registro in registros:
+        if nome_coluna_condicao is None:
+            registros_para_atualizar.append(registro)
+        else:
+            atende_condicao = avaliar_condicao(
+                tabela,
+                registro,
+                nome_coluna_condicao,
+                operador_condicao,
+                token_condicao
+            )
+            if atende_condicao:
+                registros_para_atualizar.append(registro)
+
+    alteracoes_calculadas = []
+
+    # Calcula e valida todas as alterações antes de modificar os registros.
+    for registro in registros_para_atualizar:
+        novas_alteracoes_registro = {}
+
+        for atualizacao in atualizacoes:
+            nome_coluna = atualizacao["coluna"]
+            operador = atualizacao.get("operador")
+            token = atualizacao["token"]
+
+            # O campo id nunca pode ser atualizado.
+            if nome_coluna == "id":
+                raise ErroIFFARQL(
+                    "O campo id não pode ser alterado."
+                )
+
+            coluna = buscar_coluna(
+                tabela,
+                nome_coluna
+            )
+
+            valor = token.obter_valor()
+
+            if valor is None:
+                raise ErroIFFARQL(
+                    "Valores nulos não são permitidos."
+                )
+
+            # Quando não existe operador, trata como atribuição simples.
+            if operador is None:
+                validar_token(
+                    coluna,
+                    token
+                )
+
+                novo_valor = valor
+
+            # Quando existe operador, utiliza o polimorfismo do tipo.
+            else:
+                valor_atual = registro.valores[
+                    nome_coluna
+                ]
+
+                novo_valor = coluna.tipo.operar(
+                    valor_atual,
+                    operador,
+                    valor
+                )
+
+                if not coluna.validar_valor(
+                    novo_valor
+                ):
+                    raise ErroIFFARQL(
+                        f"Resultado inválido para a coluna '{nome_coluna}'."
+                    )
+
+            # Se a coluna for chave estrangeira, valida o novo valor.
+            if coluna.chave_estrangeira is not None:
+                tabela_referenciada = banco.buscar_tabela(
+                    coluna.chave_estrangeira
+                )
+
+                registro_referenciado = (
+                    tabela_referenciada.arvore.buscar(
+                        novo_valor
+                    )
+                )
+
+                if registro_referenciado is None:
+                    raise ErroIFFARQL(
+                        "Chave estrangeira inexistente."
+                    )
+
+            novas_alteracoes_registro[
+                nome_coluna
+            ] = novo_valor
+
+        alteracoes_calculadas.append(
+            (
+                registro,
+                novas_alteracoes_registro
+            )
+        )
+
+    # Somente depois de validar tudo, aplica todas as alterações.
+    for registro, alteracoes in alteracoes_calculadas:
+        for nome_coluna, novo_valor in alteracoes.items():
+            registro.valores[
+                nome_coluna
+            ] = novo_valor
 
     return len(registros_para_atualizar)
