@@ -7,6 +7,7 @@ from tipos.texto import Texto
 OPERADORES_VALIDOS = ["<", "<=", ">", ">=", "==", "<>"]
 
 
+# Busca uma coluna pelo nome dentro da tabela.
 def buscar_coluna(tabela, nome_coluna):
     for coluna in tabela.colunas:
         if coluna.nome == nome_coluna:
@@ -17,6 +18,7 @@ def buscar_coluna(tabela, nome_coluna):
     )
 
 
+# Verifica se o operador existe e se pode ser utilizado com o tipo da coluna.
 def validar_operador(coluna, operador):
     if operador not in OPERADORES_VALIDOS:
         raise ErroIFFARQL(
@@ -30,6 +32,7 @@ def validar_operador(coluna, operador):
             )
 
 
+# Verifica se o valor e o uso de aspas são compatíveis com o tipo da coluna.
 def validar_token(coluna, token):
     valor = token.obter_valor()
 
@@ -50,6 +53,7 @@ def validar_token(coluna, token):
         )
 
 
+# Converte uma DATA para ano, mês e dia, permitindo a comparação cronológica.
 def converter_data(valor):
     dia, mes, ano = valor.split("/")
 
@@ -60,6 +64,7 @@ def converter_data(valor):
     )
 
 
+# Executa a comparação entre dois valores usando o operador informado.
 def comparar(valor_registro, operador, valor_condicao):
     if operador == "==":
         return valor_registro == valor_condicao
@@ -80,6 +85,7 @@ def comparar(valor_registro, operador, valor_condicao):
         return valor_registro >= valor_condicao
 
 
+# Avalia se um registro atende à condição informada após a palavra ONDE.
 def avaliar_condicao(tabela, registro, nome_coluna, operador, token):
     coluna = buscar_coluna(tabela, nome_coluna)
 
