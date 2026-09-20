@@ -1,0 +1,8 @@
+CRIATABELA teste_erro (nome TEXTO idade INTEIRO saldo DECIMAL)
+INSERIREM teste_erro VALOR ("Primeiro" 20 100.0)
+INSERIREM teste_erro VALOR ("Idade incorreta" "20" 100.0)
+ATUALIZATABELA teste_erro COM idade = idade + 10 COM saldo = saldo / 0.0
+ATUALIZATABELA teste_erro COM id = 99
+MOSTRADADOSDE teste_erro ONDE inexistente == 1
+INSERIREM teste_erro VALOR ("Segundo" 30 200.0)
+MOSTRADADOSDE teste_erro

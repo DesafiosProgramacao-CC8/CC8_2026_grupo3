@@ -1,0 +1,3 @@
+CARREGARBD banco_exemplo.json
+MOSTRADADOSDE cliente
+MOSTRADADOSDE pedido

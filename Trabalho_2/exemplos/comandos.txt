@@ -1,0 +1,15 @@
+CRIATABELA cliente (nome TEXTO altura DECIMAL nascimento DATA tickets INTEIRO ativo BOOLEANO)
+CRIATABELA pedido (descricao TEXTO idCliente INTEIRO CHAVESTRANGEIRA cliente)
+INSERIREM cliente VALOR ("Adão" 1.80 "20/10/2010" 20 True)
+INSERIREM cliente VALOR ("Maria Silva" 1.95 "15/05/2008" 10 False)
+INSERIREM cliente VALOR ("Bruno" 1.70 "01/01/2000" 5 True)
+INSERIREM pedido VALOR ("Primeiro pedido" 1)
+ATUALIZATABELA cliente COM tickets = 30 ONDE id == 1
+ATUALIZATABELA cliente COM tickets = tickets + 3 COM altura = altura - 0.15 ONDE nascimento == "15/05/2008"
+ATUALIZATABELA cliente COM nome = nome + " Silva" ONDE id == 1
+MOSTRADADOSDE cliente ONDE tickets >= 20
+APAGADADOSDE cliente ONDE id == 3
+INSERIREM cliente VALOR ("Carlos" 1.75 "01/01/2001" 8 True)
+MOSTRADADOSDE cliente
+MOSTRADADOSDE pedido
+SALVARBD banco_exemplo.json
