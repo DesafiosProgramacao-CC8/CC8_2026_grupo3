@@ -2,6 +2,12 @@
 import socket
 import threading
 
+try:
+    from .protocolo import processar_comando
+except ImportError:
+    from protocolo import processar_comando
+
+
 HOST = "0.0.0.0"
 PORTA = 42000
 
@@ -11,9 +17,8 @@ def atender_cliente(conexao, endereco):
 
     try:
         with conexao:
-            arquivo = conexao.makefile("rb")
+            with conexao.makefile("rb") as arquivo:
 
-            try:
                 while True:
                     dados = arquivo.readline()
 
@@ -24,40 +29,19 @@ def atender_cliente(conexao, endereco):
 
                     print(f"Recebido de {endereco}: {mensagem!r}")
 
-                    # CONECTAR
-                    if mensagem == "2|#\n":
-                        conexao.sendall(b"3|#\n")
-                        print("Resposta CONECTADO enviada.")
+                    resposta, desconectar = processar_comando(mensagem)
 
-                    # PING
-                    elif mensagem == "4|#\n":
-                        conexao.sendall(b"5|#\n")
-                        print("Resposta PONG enviada.")
-
-                    # DESCONECTAR
-                    elif mensagem.startswith("32|"):
-                        partes = mensagem.split("|")
-
-                        if (
-                            len(partes) == 3
-                            and partes[0] == "32"
-                            and partes[1].isdigit()
-                            and partes[2] == "#\n"
-                        ):
-                            conexao.sendall(b"33|#\n")
-                            print("Resposta DESCONECTADO enviada.")
-                            break
-
-                        else:
-                            print("Comando DESCONECTAR inválido.")
+                    if resposta is not None:
+                        conexao.sendall(resposta.encode("utf-8"))
+                        print(f"Resposta enviada: {resposta!r}")
 
                     else:
-                        print("Comando ainda não implementado.")
+                        print("Comando inválido ou não implementado.")
 
-            finally:
-                arquivo.close()
+                    if desconectar:
+                        break
 
-    except (ConnectionError, OSError) as erro:
+    except (ConnectionError, OSError, UnicodeDecodeError) as erro:
         print(f"Erro na conexão com {endereco}: {erro}")
 
     finally:
