@@ -13,25 +13,49 @@ def atender_cliente(conexao, endereco):
         with conexao:
             arquivo = conexao.makefile("rb")
 
-            while True:
-                dados = arquivo.readline()
+            try:
+                while True:
+                    dados = arquivo.readline()
 
-                if not dados:
-                    break
+                    if not dados:
+                        break
 
-                mensagem = dados.decode("utf-8")
-                print(f"Recebido de {endereco}: {mensagem!r}")
+                    mensagem = dados.decode("utf-8")
 
-                if mensagem == "2|#\n":
-                    conexao.sendall(b"3|#\n")
-                    print("Resposta CONECTADO enviada.")
+                    print(f"Recebido de {endereco}: {mensagem!r}")
 
-                elif mensagem == "4|#\n":
-                    conexao.sendall(b"5|#\n")
-                    print("Resposta DESCONECTADO enviada.")
+                    # CONECTAR
+                    if mensagem == "2|#\n":
+                        conexao.sendall(b"3|#\n")
+                        print("Resposta CONECTADO enviada.")
 
-                else:
-                    print("Comando ainda não implementado.")
+                    # PING
+                    elif mensagem == "4|#\n":
+                        conexao.sendall(b"5|#\n")
+                        print("Resposta PONG enviada.")
+
+                    # DESCONECTAR
+                    elif mensagem.startswith("32|"):
+                        partes = mensagem.split("|")
+
+                        if (
+                            len(partes) == 3
+                            and partes[0] == "32"
+                            and partes[1].isdigit()
+                            and partes[2] == "#\n"
+                        ):
+                            conexao.sendall(b"33|#\n")
+                            print("Resposta DESCONECTADO enviada.")
+                            break
+
+                        else:
+                            print("Comando DESCONECTAR inválido.")
+
+                    else:
+                        print("Comando ainda não implementado.")
+
+            finally:
+                arquivo.close()
 
     except (ConnectionError, OSError) as erro:
         print(f"Erro na conexão com {endereco}: {erro}")
@@ -42,6 +66,7 @@ def atender_cliente(conexao, endereco):
 
 def iniciar_servidor():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as servidor:
+
         servidor.setsockopt(
             socket.SOL_SOCKET,
             socket.SO_REUSEADDR,
@@ -66,4 +91,7 @@ def iniciar_servidor():
 
 
 if __name__ == "__main__":
-    iniciar_servidor()
+    try:
+        iniciar_servidor()
+    except KeyboardInterrupt:
+        print("\nServidor encerrado.")
