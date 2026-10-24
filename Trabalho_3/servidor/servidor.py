@@ -3,17 +3,29 @@ import socket
 import threading
 
 try:
-    from .protocolo import processar_comando
+    from .protocolo import (
+        processar_comando,
+        criar_mensagem_erro
+    )
     from .conexoes import GerenciadorConexoes
 except ImportError:
-    from protocolo import processar_comando
+    from protocolo import (
+        processar_comando,
+        criar_mensagem_erro
+    )
     from conexoes import GerenciadorConexoes
 
 
 HOST = "0.0.0.0"
 PORTA = 42000
 
+TAMANHO_MAXIMO = 4096
+
 gerenciador = GerenciadorConexoes()
+
+
+def enviar_resposta(conexao, resposta):
+    conexao.sendall(resposta.encode("utf-8"))
 
 
 def atender_cliente(conexao, endereco):
@@ -23,7 +35,7 @@ def atender_cliente(conexao, endereco):
 
     print(f"Cliente {id_conexao} conectado: {endereco}")
     print(
-        f"Conexões ativas: "
+        f"Conexoes ativas: "
         f"{gerenciador.quantidade_conexoes()}"
     )
 
@@ -32,12 +44,31 @@ def atender_cliente(conexao, endereco):
             with conexao.makefile("rb") as arquivo:
 
                 while True:
-                    dados = arquivo.readline()
+                    # Limita o tamanho de cada mensagem.
+                    dados = arquivo.readline(TAMANHO_MAXIMO + 1)
 
                     if not dados:
                         break
 
-                    mensagem = dados.decode("utf-8")
+                    if len(dados) > TAMANHO_MAXIMO:
+                        resposta = criar_mensagem_erro(
+                            "ERROCONEXAO",
+                            "Mensagem muito grande"
+                        )
+
+                        enviar_resposta(conexao, resposta)
+                        break
+
+                    try:
+                        mensagem = dados.decode("utf-8")
+                    except UnicodeDecodeError:
+                        resposta = criar_mensagem_erro(
+                            "ERROCONEXAO",
+                            "Codificacao invalida"
+                        )
+
+                        enviar_resposta(conexao, resposta)
+                        break
 
                     print(
                         f"Cliente {id_conexao} enviou: "
@@ -49,22 +80,19 @@ def atender_cliente(conexao, endereco):
                     )
 
                     if resposta is not None:
-                        conexao.sendall(
-                            resposta.encode("utf-8")
-                        )
+                        enviar_resposta(conexao, resposta)
 
-                    else:
                         print(
-                            f"Comando inválido ou não implementado "
-                            f"do cliente {id_conexao}."
+                            f"Resposta enviada ao cliente "
+                            f"{id_conexao}: {resposta!r}"
                         )
 
                     if desconectar:
                         break
 
-    except (ConnectionError, OSError, UnicodeDecodeError) as erro:
+    except (ConnectionError, OSError) as erro:
         print(
-            f"Erro na conexão {id_conexao}: {erro}"
+            f"Erro na conexao {id_conexao}: {erro}"
         )
 
     finally:
@@ -72,7 +100,7 @@ def atender_cliente(conexao, endereco):
 
         print(f"Cliente {id_conexao} desconectado.")
         print(
-            f"Conexões ativas: "
+            f"Conexoes ativas: "
             f"{gerenciador.quantidade_conexoes()}"
         )
 
