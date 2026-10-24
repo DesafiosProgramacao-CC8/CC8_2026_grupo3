@@ -1,0 +1,20 @@
+
+import socket
+
+HOST = "127.0.0.1"
+PORTA = 42000
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cliente:
+    cliente.connect((HOST, PORTA))
+
+    with cliente.makefile("rb") as arquivo:
+
+        # Teste CONECTAR
+        cliente.sendall(b"2|#\n")
+        resposta = arquivo.readline().decode("utf-8")
+        print(f"CONECTAR: {resposta!r}")
+
+        # Teste PING
+        cliente.sendall(b"4|#\n")
+        resposta = arquivo.readline().decode("utf-8")
+        print(f"PING: {resposta!r}")
