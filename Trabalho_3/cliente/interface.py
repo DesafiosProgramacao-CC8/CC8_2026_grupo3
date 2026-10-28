@@ -37,10 +37,16 @@ class JanelaIFFARChat(tk.Tk):
             link.bind("<Button-1>", lambda evento, funcao=acao: funcao())
         self.area = tk.Frame(painel, bg=CORES["painel"])
         self.area.pack(fill="both", expand=True)
+        # Telas sobrepostas em uma única célula: alternar não recalcula o pack.
+        self.area.grid_rowconfigure(0, weight=1)
+        self.area.grid_columnconfigure(0, weight=1)
         self.tela_acesso = None
+        self.tela_chat = None
 
         # Centraliza o formulário sem altura fixa, evitando cortar botões.
-        centro = tk.Frame(self.area, bg=CORES["painel"], width=540, height=390)
+        self.tela_conexao = tk.Frame(self.area, bg=CORES["painel"])
+        self.tela_conexao.grid(row=0, column=0, sticky="nsew")
+        centro = tk.Frame(self.tela_conexao, bg=CORES["painel"], width=540, height=390)
         centro.place(relx=0.5, rely=0.53, anchor="center")
         centro.pack_propagate(False)
         tk.Label(centro, text="IFFARCHAT", fg=CORES["verde"], bg=CORES["painel"],
@@ -62,22 +68,36 @@ class JanelaIFFARChat(tk.Tk):
         self.bolinha = self.indicador.create_oval(2, 2, 14, 14, fill="#C84A48", outline="")
         tk.Label(linha_status, textvariable=self.status, fg=CORES["verde"], bg=CORES["painel"],
                  font=("Helvetica Neue", 11), anchor="w", justify="left", wraplength=470).pack(side="left", fill="x", expand=True)
+        # A prévia do chat não altera a conexão TCP nem exige autenticação.
         self.painel = painel
+        self.atalho_chat = tk.Label(topo, text="Prévia do chat", fg=CORES["verde"],
+                                    bg=CORES["painel"], cursor="hand2",
+                                    font=("Helvetica Neue", 11, "bold"), padx=10)
+        self.atalho_chat.pack(side="left")
+        self.atalho_chat.bind("<Button-1>", lambda _: self.mostrar("chat"))
         self.protocol("WM_DELETE_WINDOW", self.fechar)
         self.atualizar_botoes()
 
     def mostrar(self, modo):
+        """Troca apenas a tela visível, preservando a conexão TCP."""
         if modo == "conexao":
-            if self.tela_acesso is not None:
-                self.tela_acesso.pack_forget()
-            self.area.pack(fill="both", expand=True)
+            destino = self.tela_conexao
+        elif modo == "chat":
+            if self.tela_chat is None:
+                from tela_chat import TelaChat
+                self.tela_chat = TelaChat(self.area, lambda: self.mostrar("conexao"))
+                self.tela_chat.grid(row=0, column=0, sticky="nsew")
+            destino = self.tela_chat
+        elif modo in ("login", "cadastro"):
+            if self.tela_acesso is None:
+                from telas_acesso import TelaAcesso
+                self.tela_acesso = TelaAcesso(self.area, self.mostrar)
+                self.tela_acesso.grid(row=0, column=0, sticky="nsew")
+            destino = self.tela_acesso
+            destino.mostrar(modo)
+        else:
             return
-        self.area.pack_forget()
-        if self.tela_acesso is None:
-            from telas_acesso import TelaAcesso
-            self.tela_acesso = TelaAcesso(self.painel, self.mostrar)
-        self.tela_acesso.mostrar(modo)
-        self.tela_acesso.pack(fill="both", expand=True)
+        destino.tkraise()
 
     def campo(self, pai, titulo, variavel):
         tk.Label(pai, text=titulo, fg=CORES["secundario"], bg=CORES["painel"],

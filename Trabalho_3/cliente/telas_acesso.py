@@ -10,16 +10,14 @@ CORES = {"fundo": "#F3EFE8", "painel": "#FFFAF4", "verde": "#4D563D",
          "caramelo": "#A67C52", "borda": "#DDD4C8", "texto": "#27251F",
          "secundario": "#666057", "branco": "#FFFFFF"}
 
-
 def formatar_nascimento(valor):
-    """Insere barras em DD/MM/AAAA, aceitando digitação com ou sem barras."""
+    #Insere barras em DD/MM/AAAA, aceitando digitação com ou sem barras.
     numeros = re.sub(r"\D", "", valor)[:8]
     if len(numeros) > 4:
         return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:]}"
     if len(numeros) > 2:
         return f"{numeros[:2]}/{numeros[2:]}"
     return numeros
-
 
 def validar_cadastro(nome, apelido, nascimento, senha, confirmacao):
     if not nome.strip() or not apelido.strip():
