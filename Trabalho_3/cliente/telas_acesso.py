@@ -3,10 +3,22 @@
 import re
 import tkinter as tk
 from datetime import date, datetime
+from hash_senha import gerar_hash_senha
+from protocolo_cliente import criar_mensagem
 
 CORES = {"fundo": "#F3EFE8", "painel": "#FFFAF4", "verde": "#4D563D",
          "caramelo": "#A67C52", "borda": "#DDD4C8", "texto": "#27251F",
          "secundario": "#666057", "branco": "#FFFFFF"}
+
+
+def formatar_nascimento(valor):
+    """Insere barras em DD/MM/AAAA, aceitando digitação com ou sem barras."""
+    numeros = re.sub(r"\D", "", valor)[:8]
+    if len(numeros) > 4:
+        return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:]}"
+    if len(numeros) > 2:
+        return f"{numeros[:2]}/{numeros[2:]}"
+    return numeros
 
 
 def validar_cadastro(nome, apelido, nascimento, senha, confirmacao):
@@ -14,6 +26,7 @@ def validar_cadastro(nome, apelido, nascimento, senha, confirmacao):
         return "Informe nome completo e apelido."
     if any(c in nome + apelido for c in "|#\n\r"):
         return "Nome e apelido não podem conter |, # ou quebra de linha."
+    nascimento = formatar_nascimento(nascimento)
     try:
         data = datetime.strptime(nascimento, "%d/%m/%Y").date()
         if data.strftime("%d/%m/%Y") != nascimento or data > date.today():
@@ -88,14 +101,67 @@ class TelaAcesso(tk.Frame):
                                bg=CORES["branco"], fg=CORES["texto"], relief="flat",
                                highlightthickness=1, highlightbackground=CORES["borda"])
             entrada.pack(fill="x", ipady=6, pady=(0, 9))
+            if chave == "nascimento":
+                entrada.bind("<KeyPress>", lambda evento: self.tecla_data(evento))
+                entrada.bind("<<Paste>>", lambda evento: self.after(10, self.ajustar_data_colada, evento.widget))
             self.campos[chave] = entrada
         self.botao(corpo, "Criar conta" if self.modo == "cadastro" else "Entrar", self.validar, CORES["caramelo"])
-        self.botao(corpo, "Voltar ao login" if self.modo == "cadastro" else "Criar uma conta",
-                   lambda: self.mostrar("login" if self.modo == "cadastro" else "cadastro"), CORES["verde"])
+        if self.modo == "login":
+            self.botao(corpo, "Criar uma conta", lambda: self.mostrar("cadastro"), CORES["verde"])
         self.mensagem.set("Prévia da interface: envio ao servidor ainda não integrado.")
         tk.Label(corpo, textvariable=self.mensagem, bg=CORES["painel"], fg=CORES["secundario"],
                  wraplength=390, justify="center", font=("Helvetica Neue", 10)).pack(fill="x", pady=(10, 0))
         self.after_idle(self.ajustar)
+
+    def tecla_data(self, evento):
+        entrada = evento.widget
+        tecla = evento.keysym
+        if tecla in ("Tab", "ISO_Left_Tab", "Left", "Right", "Home", "End"):
+            return None
+        if evento.state & 0x4 and tecla.lower() in ("a", "c", "v", "x"):
+            return None  # Atalhos do teclado, inclusive colar.
+        atual = entrada.get()
+        digitos = re.sub(r"\D", "", atual)[:8]
+        pos = len(re.sub(r"\D", "", atual[:entrada.index(tk.INSERT)]))
+        selecao = entrada.selection_present()
+        if selecao:
+            inicio = len(re.sub(r"\D", "", atual[:entrada.index(tk.SEL_FIRST)]))
+            fim = len(re.sub(r"\D", "", atual[:entrada.index(tk.SEL_LAST)]))
+            digitos = digitos[:inicio] + digitos[fim:]
+            pos = inicio
+        if evento.char.isascii() and evento.char.isdigit():
+            if len(digitos) >= 8:
+                return "break"
+            digitos = digitos[:pos] + evento.char + digitos[pos:]
+            pos += 1
+        elif tecla == "BackSpace":
+            if not selecao and pos > 0:
+                digitos = digitos[:pos - 1] + digitos[pos:]
+                pos -= 1
+        elif tecla == "Delete":
+            if not selecao:
+                digitos = digitos[:pos] + digitos[pos + 1:]
+        else:
+            return "break"
+        formatado = formatar_nascimento(digitos)
+        entrada.delete(0, tk.END)
+        entrada.insert(0, formatado)
+        indice = 0
+        vistos = 0
+        while indice < len(formatado) and vistos < pos:
+            if formatado[indice].isdigit():
+                vistos += 1
+            indice += 1
+        if indice < len(formatado) and formatado[indice] == "/":
+            indice += 1
+        entrada.icursor(indice)
+        return "break"
+
+    def ajustar_data_colada(self, entrada):
+        texto = formatar_nascimento(entrada.get())
+        entrada.delete(0, tk.END)
+        entrada.insert(0, texto)
+        entrada.icursor(tk.END)
 
     def botao(self, pai, texto, comando, cor):
         rotulo = tk.Label(pai, text=texto, fg=CORES["branco"], bg=cor,
@@ -112,4 +178,23 @@ class TelaAcesso(tk.Frame):
         else:
             erro = validar_cadastro(dados["nome"], dados["apelido"], dados["nascimento"],
                                     dados["senha"], dados["confirmacao"])
-        self.mensagem.set(erro or "Dados válidos. Cadastro e login serão integrados posteriormente.")
+        if erro:
+            self.mensagem.set(erro)
+            return
+
+        # A senha é codificada no cliente, antes de qualquer envio à rede.
+        # Neste commit apenas preparamos o comando; não o transmitimos.
+        try:
+            senha_hash = gerar_hash_senha(dados["senha"])
+            if self.modo == "login":
+                comando = criar_mensagem(16, dados["apelido"], senha_hash)
+            else:
+                comando = criar_mensagem(8, dados["nome"], dados["apelido"],
+                                         formatar_nascimento(dados["nascimento"]), senha_hash)
+        except ValueError as erro_hash:
+            self.mensagem.set(str(erro_hash))
+            return
+
+        # Não exibir nem registrar senha ou hash em logs.
+        self.mensagem.set("Dados validados e senha codificada. "
+                          "Comando preparado localmente; envio ainda não integrado.")
