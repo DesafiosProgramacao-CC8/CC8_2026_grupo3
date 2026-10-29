@@ -13,6 +13,7 @@ class TelaAmizades(tk.Frame):
         super().__init__(mestre, bg=CORES["fundo"])
         self.aba = "usuarios"
         self.busca = tk.StringVar()
+        self.dica_busca = "Buscar usuários..."
         self.montar()
 
     def montar(self):
@@ -42,7 +43,7 @@ class TelaAmizades(tk.Frame):
         campo_busca = CampoArredondado(lateral, variavel=self.busca, fundo=CORES["bege"], prefixo="⌕")
         campo_busca.pack(fill="x", padx=14, pady=(0, 14))
         self.campo_busca = campo_busca
-        self._placeholder(campo_busca.entrada, "Buscar amigos...")
+        self._placeholder(campo_busca.entrada)
         self.busca.trace_add("write", lambda *_: self.atualizar())
         #Aviso de pesquisa sem correspondência, sem cartão.
         self.aviso_busca = tk.Label(lateral, text="", bg=CORES["bege"],
@@ -73,17 +74,17 @@ class TelaAmizades(tk.Frame):
                  font=("Helvetica Neue", 10)).pack(pady=(12, 0))
         self.selecionar("usuarios")
 
-    def _placeholder(self, entrada, texto):
-        #Exibe a dica no campo sem afetar a pesquisa.
+    def _placeholder(self, entrada):
+        #Exibe a dica da aba atual sem afetar a pesquisa.
         def foco(_evento=None):
-            if entrada.get() == texto:
+            if entrada.get() == self.dica_busca:
                 entrada.delete(0, "end")
                 entrada.configure(fg=CORES["texto"])
 
         def sair(_evento=None):
             if not entrada.get().strip():
                 entrada.delete(0, "end")
-                entrada.insert(0, texto)
+                entrada.insert(0, self.dica_busca)
                 entrada.configure(fg="#8B857C")
 
         entrada.bind("<FocusIn>", foco, add="+")
@@ -94,6 +95,9 @@ class TelaAmizades(tk.Frame):
         if aba not in self.botoes:
             return
         self.aba = aba
+        #Ajusta a dica da busca conforme a aba escolhida.
+        self.dica_busca = {"usuarios": "Buscar usuários...", "amigos": "Buscar amigos...",
+                           "solicitacoes": "Buscar solicitações..."}[aba]
         for chave, botao in self.botoes.items():
             botao.definir_cor(CORES["caramelo"] if chave == aba else CORES["selecao"])
         titulos = {"usuarios": ("Usuários online", "Encontre usuários conectados"),
@@ -103,7 +107,7 @@ class TelaAmizades(tk.Frame):
         self.subtitulo.configure(text=titulos[aba][1])
         self.busca.set("")
         self.campo_busca.entrada.delete(0, "end")
-        self.campo_busca.entrada.insert(0, "Buscar amigos...")
+        self.campo_busca.entrada.insert(0, self.dica_busca)
         self.campo_busca.entrada.configure(fg="#8B857C")
         self.atualizar()
 
@@ -114,7 +118,7 @@ class TelaAmizades(tk.Frame):
                      "solicitacoes": "Nenhuma solicitação carregada."}
         #Exibe o aviso somente se houver pesquisa real sem resultados.
         termo = self.busca.get().strip()
-        if termo == "Buscar amigos...":
+        if termo == self.dica_busca:
             termo = ""
         self.aviso_busca.configure(text="Nenhum resultado encontrado." if termo else "")
         self.conteudo.configure(text=mensagens[self.aba] + "\nAguardando integração com o servidor.")

@@ -31,6 +31,8 @@ class JanelaIFFARChat(tk.Tk):
         for texto, acao in (("Sair", self.fechar),
                             ("Login", lambda: self.mostrar("login")),
                             ("Cadastro", lambda: self.mostrar("cadastro")),
+                            ("Perfil", lambda: self.mostrar("perfil")),
+                            ("Notificações", lambda: self.mostrar("notificacoes")),
                             ("Amigos", lambda: self.mostrar("amigos")),
                             ("Chat", lambda: self.mostrar("chat")),
                             ("Conexão", lambda: self.mostrar("conexao"))):
@@ -46,17 +48,21 @@ class JanelaIFFARChat(tk.Tk):
         self.tela_acesso = None
         self.tela_chat = None
         self.tela_amizades = None
+        self.tela_notificacoes = None
+        self.tela_perfil = None
 
         # Centraliza o formulário sem altura fixa, evitando cortar botões.
         self.tela_conexao = tk.Frame(self.area, bg=CORES["painel"])
         self.tela_conexao.grid(row=0, column=0, sticky="nsew")
-        centro = tk.Frame(self.tela_conexao, bg=CORES["painel"], width=540, height=390)
-        centro.place(relx=0.5, rely=0.53, anchor="center")
-        centro.pack_propagate(False)
+        #Largura fixa e altura livre, para nada ser cortado no rodapé.
+        centro = tk.Frame(self.tela_conexao, bg=CORES["painel"])
+        centro.place(relx=0.5, rely=0.5, anchor="center", width=540)
+        #Linha verde acima do título, no padrão do Cadastro.
+        tk.Frame(centro, bg=CORES["verde"], height=5).pack(fill="x", pady=(0, 12))
         tk.Label(centro, text="IFFARCHAT", fg=CORES["verde"], bg=CORES["painel"],
-                 font=("Helvetica Neue", 32, "bold")).pack(pady=(8, 4))
+                 font=("Helvetica Neue", 32, "bold")).pack(pady=(0, 4))
         tk.Label(centro, text="CONEXÃO COM O SERVIDOR TCP", fg=CORES["secundario"],
-                 bg=CORES["painel"], font=("Helvetica Neue", 10, "bold")).pack(pady=(0, 37))
+                 bg=CORES["painel"], font=("Helvetica Neue", 10, "bold")).pack(pady=(0, 24))
         self.campo(centro, "Endereço do servidor", self.host)
         self.campo(centro, "Porta", self.porta)
         barra = tk.Frame(centro, bg=CORES["painel"])
@@ -72,13 +78,8 @@ class JanelaIFFARChat(tk.Tk):
         self.bolinha = self.indicador.create_oval(2, 2, 14, 14, fill="#C84A48", outline="")
         tk.Label(linha_status, textvariable=self.status, fg=CORES["verde"], bg=CORES["painel"],
                  font=("Helvetica Neue", 11), anchor="w", justify="left", wraplength=470).pack(side="left", fill="x", expand=True)
-        # A prévia do chat não altera a conexão TCP nem exige autenticação.
+        #Mantém a conexão ativa durante a navegação.
         self.painel = painel
-        self.atalho_chat = tk.Label(topo, text="Prévia do chat", fg=CORES["verde"],
-                                    bg=CORES["painel"], cursor="hand2",
-                                    font=("Helvetica Neue", 11, "bold"), padx=10)
-        self.atalho_chat.pack(side="left")
-        self.atalho_chat.bind("<Button-1>", lambda _: self.mostrar("chat"))
         self.protocol("WM_DELETE_WINDOW", self.fechar)
         self.atualizar_botoes()
 
@@ -98,6 +99,18 @@ class JanelaIFFARChat(tk.Tk):
                 self.tela_amizades = TelaAmizades(self.area)
                 self.tela_amizades.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_amizades
+        elif modo == "notificacoes":
+            if self.tela_notificacoes is None:
+                from tela_notificacoes import TelaNotificacoes
+                self.tela_notificacoes = TelaNotificacoes(self.area)
+                self.tela_notificacoes.grid(row=0, column=0, sticky="nsew")
+            destino = self.tela_notificacoes
+        elif modo == "perfil":
+            if self.tela_perfil is None:
+                from tela_perfil import TelaPerfil
+                self.tela_perfil = TelaPerfil(self.area)
+                self.tela_perfil.grid(row=0, column=0, sticky="nsew")
+            destino = self.tela_perfil
         elif modo in ("login", "cadastro"):
             if self.tela_acesso is None:
                 from telas_acesso import TelaAcesso
