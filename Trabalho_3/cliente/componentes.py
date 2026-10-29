@@ -43,7 +43,7 @@ class BotaoArredondado(tk.Canvas):
         cor = (self.hover if self._sobre else self.cor) if self.habilitado else "#DDD4C8"
         retangulo_arredondado(self, 1, 1, largura-1, altura-1, 12, fill=cor, outline="")
         self.create_text(largura/2, altura/2, text=self.texto,
-                         fill=("#4D563D" if self.cor == "#E8DDCB" else "#FFFFFF") if self.habilitado else "#666057",
+                         fill=("#FFFFFF" if self.cor.lower() in ("#a67c52", "#8c6c55") else "#4D563D") if self.habilitado else "#666057",
                          font=("Helvetica Neue", 11, "bold"))
         self.configure(cursor="hand2" if self.habilitado else "arrow")
 
@@ -79,7 +79,7 @@ class CampoArredondado(tk.Frame):
         self.canvas.delete("icone")
         if self.prefixo:
             self.canvas.create_text(22, evento.height / 2, text=self.prefixo,
-                                    font=("Helvetica Neue", 12), tags="icone")
+                                    font=("Helvetica Neue", 17), fill="#77736D", tags="icone")
         self.canvas.itemconfigure(self.item, width=max(1, evento.width-(56 if self.prefixo else 28)),
                                   height=max(1, evento.height-18))
 

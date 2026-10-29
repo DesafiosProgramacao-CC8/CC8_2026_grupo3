@@ -6,7 +6,7 @@ from componentes import BotaoArredondado, CampoArredondado
 CORES = {"fundo": "#F3EFE8", "painel": "#FFFAF4", "verde": "#4D563D",
          "caramelo": "#A67C52", "hover": "#8C6C55", "borda": "#DDD4C8",
          "texto": "#27251F", "secundario": "#666057", "branco": "#FFFFFF",
-         "areia": "#F0EBE3", "selecao": "#E8DDCB", "cabecalho": "#E4E3D8"}
+         "areia": "#F0E8DD", "selecao": "#E8DDCB", "cabecalho": "#E9DCCB"}
 
 
 class PainelArredondado(tk.Frame):
@@ -71,15 +71,19 @@ class TelaChat(tk.Frame):
         busca_container = tk.Frame(lateral, bg=CORES["areia"])
         busca_container.pack(fill="x", padx=10, pady=(0, 10))
         campo_busca = CampoArredondado(busca_container, variavel=self.busca,
-                                       fundo=CORES["areia"], prefixo="🔍")
+                                       fundo=CORES["areia"], prefixo="⌕")
         campo_busca.pack(fill="x", expand=True)
         self.campo_busca = campo_busca.entrada
+        self._busca_placeholder = "Buscar conversa..."
+        self._busca_placeholder_ativo = False
+        self.campo_busca.bind("<FocusIn>", self._limpar_busca_placeholder)
+        self.campo_busca.bind("<FocusOut>", self._restaurar_busca_placeholder)
+        self._restaurar_busca_placeholder()
         self.busca.trace_add("write", lambda *_: self.atualizar_lista())
-        self.item_lista = tk.Label(lateral, text="", bg=CORES["selecao"], fg=CORES["texto"],
-                                   font=("Helvetica Neue", 11, "bold"), justify="left",
-                                   anchor="w", padx=12, pady=13, cursor="hand2")
-        self.item_lista.pack(fill="x", padx=10)
-        self.item_lista.bind("<Button-1>", lambda _: self.abrir_item())
+        #Mensagem discreta apenas quando a pesquisa não encontra conversas.
+        self.aviso_busca = tk.Label(lateral, text="", bg=CORES["areia"],
+                                    fg=CORES["secundario"], font=("Helvetica Neue", 10))
+        self.aviso_busca.pack(fill="x", padx=10)
 
         principal = tk.Frame(corpo, bg=CORES["painel"])
         principal.pack(side="left", fill="both", expand=True)
@@ -94,10 +98,10 @@ class TelaChat(tk.Frame):
                                   fg=CORES["secundario"], font=("Helvetica Neue", 10))
         self.subtitulo.pack(anchor="w", pady=(3, 0))
         #Área de mensagens com fundo suave e cantos arredondados.
-        painel_mensagens = PainelArredondado(principal, CORES["areia"], margem=14)
+        painel_mensagens = PainelArredondado(principal, "#F5EFE7", margem=14)
         painel_mensagens.pack(fill="both", expand=True)
         self.area_mensagens = tk.Text(
-            painel_mensagens.interior, bg=CORES["areia"], fg=CORES["texto"],
+            painel_mensagens.interior, bg="#F5EFE7", fg=CORES["texto"],
             relief="flat", bd=0, highlightthickness=0, wrap="word",
             font=("Helvetica Neue", 11), padx=12, pady=12,
             insertbackground=CORES["texto"]
@@ -113,32 +117,48 @@ class TelaChat(tk.Frame):
         tk.Label(ids, text="Meu ID:", bg=CORES["painel"], fg=CORES["secundario"]).pack(side="left")
         campo_id = CampoArredondado(ids, variavel=self.remetente, fundo=CORES["painel"])
         campo_id.pack(side="left", padx=(8, 15), ipadx=0)
-        campo_id.configure(width=110)
+        campo_id.configure(width=150)
+        self._configurar_placeholder(campo_id.entrada, "Digite seu ID...")
         self.label_destino = tk.Label(ids, text="ID destinatário:", bg=CORES["painel"], fg=CORES["secundario"])
         self.campo_destino = CampoArredondado(ids, variavel=self.destinatario,
                                                fundo=CORES["painel"])
-        self.campo_destino.configure(width=110)
+        self.campo_destino.configure(width=190)
+        self._configurar_placeholder(self.campo_destino.entrada, "Digite o ID do destinatário...")
         linha = tk.Frame(rodape, bg=CORES["painel"])
         linha.pack(fill="x")
         campo_mensagem = CampoArredondado(linha, fundo=CORES["painel"])
         campo_mensagem.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.entrada = campo_mensagem.entrada
+        #Placeholder da mensagem sem alterar o conteúdo enviado.
+        self._placeholder = "Digite sua mensagem..."
+        self._placeholder_ativo = False
+        self.entrada.bind("<FocusIn>", self._limpar_placeholder)
+        self.entrada.bind("<FocusOut>", self._restaurar_placeholder)
+        self._restaurar_placeholder()
         self.botao(linha, "Enviar", self.preparar).pack(side="right", padx=(0, 2))
         tk.Label(self, textvariable=self.aviso, bg=CORES["painel"], fg=CORES["secundario"],
                  font=("Helvetica Neue", 10), wraplength=650).pack(pady=(0, 8))
         self.selecionar("geral")
 
-    def atualizar_lista(self):
-        #A busca filtra apenas a categoria selecionada.
-        nome = "Conversa geral" if self.tipo == "geral" else "Conversa privada"
-        termo = self.busca.get().strip().lower()
-        if termo and termo not in nome.lower():
-            self.item_lista.configure(text="Nenhuma conversa encontrada.", cursor="arrow")
-        else:
-            self.item_lista.configure(text=nome, cursor="hand2")
+    def _limpar_busca_placeholder(self, _evento=None):
+        #Remove o texto de orientação ao iniciar a busca.
+        if self._busca_placeholder_ativo:
+            self._busca_placeholder_ativo = False
+            self.busca.set("")
+            self.campo_busca.configure(fg=CORES["texto"])
 
-    def abrir_item(self):
-        self.selecionar(self.tipo)
+    def _restaurar_busca_placeholder(self, _evento=None):
+        #Restaura a dica quando o campo estiver vazio.
+        if not self.busca.get().strip():
+            self._busca_placeholder_ativo = True
+            self.busca.set(self._busca_placeholder)
+            self.campo_busca.configure(fg="#8B857C")
+
+    def atualizar_lista(self):
+        #Não exibe cartão de conversa; informa somente buscas sem correspondência.
+        nome = "Conversa geral" if self.tipo == "geral" else "Conversa privada"
+        termo = "" if self._busca_placeholder_ativo else self.busca.get().strip().lower()
+        self.aviso_busca.configure(text="Nenhuma conversa encontrada." if termo and termo not in nome.lower() else "")
 
     def selecionar(self, tipo):
         #Atualiza as abas sem recriar a janela.
@@ -154,14 +174,49 @@ class TelaChat(tk.Frame):
             self.label_destino.pack_forget()
             self.campo_destino.pack_forget()
         self.busca.set("")
+        self._restaurar_busca_placeholder()
         self.atualizar_lista()
         self.aviso.set("Prévia local: mensagens não são enviadas ao servidor.")
+
+    def _configurar_placeholder(self, entrada, texto):
+        #Mostra uma dica sem incluir o texto no comando enviado.
+        def entrar(_evento=None):
+            if entrada.get() == texto:
+                entrada.delete(0, "end")
+                entrada.configure(fg=CORES["texto"])
+
+        def sair(_evento=None):
+            if not entrada.get().strip():
+                entrada.delete(0, "end")
+                entrada.insert(0, texto)
+                entrada.configure(fg="#8B857C")
+
+        entrada.bind("<FocusIn>", entrar, add="+")
+        entrada.bind("<FocusOut>", sair, add="+")
+        sair()
+
+    def _limpar_placeholder(self, _evento=None):
+        if self._placeholder_ativo:
+            self.entrada.delete(0, "end")
+            self.entrada.configure(fg=CORES["texto"])
+            self._placeholder_ativo = False
+
+    def _restaurar_placeholder(self, _evento=None):
+        if not self.entrada.get().strip():
+            self.entrada.delete(0, "end")
+            self.entrada.insert(0, self._placeholder)
+            self.entrada.configure(fg="#8B857C")
+            self._placeholder_ativo = True
 
     def preparar(self):
         #Prepara o comando sem transmitir mensagens ao servidor.
         origem = self.remetente.get().strip()
+        if origem == "Digite seu ID...":
+            origem = ""
         destino = self.destinatario.get().strip() if self.tipo == "privada" else ""
-        mensagem = self.entrada.get().strip()
+        if destino == "Digite o ID do destinatário...":
+            destino = ""
+        mensagem = "" if self._placeholder_ativo else self.entrada.get().strip()
         if not origem.isdigit() or int(origem) <= 0:
             self.aviso.set("Informe um ID de remetente positivo.")
             return
@@ -169,7 +224,7 @@ class TelaChat(tk.Frame):
             self.aviso.set("Informe um ID de destinatário positivo.")
             return
         if not mensagem:
-            self.aviso.set("Digite uma mensagem para preparar o comando.")
+            self.aviso.set("Digite uma mensagem antes de enviar.")
             return
         try:
             criar_mensagem(2048, origem, destino, mensagem)

@@ -31,6 +31,8 @@ class JanelaIFFARChat(tk.Tk):
         for texto, acao in (("Sair", self.fechar),
                             ("Login", lambda: self.mostrar("login")),
                             ("Cadastro", lambda: self.mostrar("cadastro")),
+                            ("Amigos", lambda: self.mostrar("amigos")),
+                            ("Chat", lambda: self.mostrar("chat")),
                             ("Conexão", lambda: self.mostrar("conexao"))):
             link = tk.Label(topo, text=texto, fg=CORES["verde"], bg=CORES["painel"],
                             font=("Helvetica Neue", 11, "bold"), cursor="hand2", padx=10)
@@ -43,6 +45,7 @@ class JanelaIFFARChat(tk.Tk):
         self.area.grid_columnconfigure(0, weight=1)
         self.tela_acesso = None
         self.tela_chat = None
+        self.tela_amizades = None
 
         # Centraliza o formulário sem altura fixa, evitando cortar botões.
         self.tela_conexao = tk.Frame(self.area, bg=CORES["painel"])
@@ -89,6 +92,12 @@ class JanelaIFFARChat(tk.Tk):
                 self.tela_chat = TelaChat(self.area, lambda: self.mostrar("conexao"))
                 self.tela_chat.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_chat
+        elif modo == "amigos":
+            if self.tela_amizades is None:
+                from tela_amizades import TelaAmizades
+                self.tela_amizades = TelaAmizades(self.area)
+                self.tela_amizades.grid(row=0, column=0, sticky="nsew")
+            destino = self.tela_amizades
         elif modo in ("login", "cadastro"):
             if self.tela_acesso is None:
                 from telas_acesso import TelaAcesso
