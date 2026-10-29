@@ -1,23 +1,25 @@
-#Formulários de login e cadastro do IFFARCHAT (somente interface, sem envio).
-
+# Telas de cadastro e login, sem comunicação com o servidor nesta etapa.
 import re
 import tkinter as tk
 from datetime import date, datetime
 from hash_senha import gerar_hash_senha
 from protocolo_cliente import criar_mensagem
+from componentes import BotaoArredondado, CampoArredondado
 
 CORES = {"fundo": "#F3EFE8", "painel": "#FFFAF4", "verde": "#4D563D",
          "caramelo": "#A67C52", "borda": "#DDD4C8", "texto": "#27251F",
          "secundario": "#666057", "branco": "#FFFFFF"}
 
+
 def formatar_nascimento(valor):
-    #Insere barras em DD/MM/AAAA, aceitando digitação com ou sem barras.
+    """Insere barras em DD/MM/AAAA, aceitando digitação com ou sem barras."""
     numeros = re.sub(r"\D", "", valor)[:8]
     if len(numeros) > 4:
         return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:]}"
     if len(numeros) > 2:
         return f"{numeros[:2]}/{numeros[2:]}"
     return numeros
+
 
 def validar_cadastro(nome, apelido, nascimento, senha, confirmacao):
     if not nome.strip() or not apelido.strip():
@@ -95,10 +97,9 @@ class TelaAcesso(tk.Frame):
         for titulo, chave, segredo in campos:
             tk.Label(corpo, text=titulo, fg=CORES["secundario"], bg=CORES["painel"],
                      font=("Helvetica Neue", 10)).pack(anchor="w", pady=(0, 3))
-            entrada = tk.Entry(corpo, show="•" if segredo else "", font=("Helvetica Neue", 11),
-                               bg=CORES["branco"], fg=CORES["texto"], relief="flat",
-                               highlightthickness=1, highlightbackground=CORES["borda"])
-            entrada.pack(fill="x", ipady=6, pady=(0, 9))
+            campo = CampoArredondado(corpo, senha=segredo, fundo=CORES["painel"])
+            campo.pack(fill="x", pady=(0, 9))
+            entrada = campo.entrada
             if chave == "nascimento":
                 entrada.bind("<KeyPress>", lambda evento: self.tecla_data(evento))
                 entrada.bind("<<Paste>>", lambda evento: self.after(10, self.ajustar_data_colada, evento.widget))
@@ -162,12 +163,9 @@ class TelaAcesso(tk.Frame):
         entrada.icursor(tk.END)
 
     def botao(self, pai, texto, comando, cor):
-        rotulo = tk.Label(pai, text=texto, fg=CORES["branco"], bg=cor,
-                          font=("Helvetica Neue", 11, "bold"), pady=10,
-                          cursor="hand2", takefocus=1)
-        rotulo.pack(fill="x", pady=(5, 0))
-        for evento in ("<Button-1>", "<Return>", "<space>"):
-            rotulo.bind(evento, lambda e: comando())
+        botao = BotaoArredondado(pai, texto, comando, cor=cor,
+                                 fundo=CORES["painel"])
+        botao.pack(fill="x", pady=(5, 0))
 
     def validar(self):
         dados = {chave: entrada.get() for chave, entrada in self.campos.items()}

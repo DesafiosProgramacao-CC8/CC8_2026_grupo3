@@ -1,8 +1,8 @@
-#Interface de conexão TCP do IFFARCHAT.
-
+#Tela inicial do IFFARCHAT com navegação integrada.
 import threading
 import tkinter as tk
 from conexao import ConexaoTCP, ErroConexao
+from componentes import BotaoArredondado, CampoArredondado
 
 CORES = {"fundo": "#F3EFE8", "painel": "#FFFAF4", "verde": "#4D563D",
          "caramelo": "#A67C52", "hover": "#8C6C55", "borda": "#DDD4C8",
@@ -30,7 +30,8 @@ class JanelaIFFARChat(tk.Tk):
         topo.pack(fill="x", padx=25, pady=(16, 0))
         for texto, acao in (("Sair", self.fechar),
                             ("Login", lambda: self.mostrar("login")),
-                            ("Cadastro", lambda: self.mostrar("cadastro"))):
+                            ("Cadastro", lambda: self.mostrar("cadastro")),
+                            ("Conexão", lambda: self.mostrar("conexao"))):
             link = tk.Label(topo, text=texto, fg=CORES["verde"], bg=CORES["painel"],
                             font=("Helvetica Neue", 11, "bold"), cursor="hand2", padx=10)
             link.pack(side="right")
@@ -102,25 +103,14 @@ class JanelaIFFARChat(tk.Tk):
     def campo(self, pai, titulo, variavel):
         tk.Label(pai, text=titulo, fg=CORES["secundario"], bg=CORES["painel"],
                  font=("Helvetica Neue", 11)).pack(anchor="w", pady=(0, 5))
-        tk.Entry(pai, textvariable=variavel, bg=CORES["branco"], fg=CORES["texto"],
-                 insertbackground=CORES["texto"], relief="flat", highlightthickness=1,
-                 highlightbackground=CORES["borda"], highlightcolor=CORES["verde"],
-                 font=("Helvetica Neue", 12)).pack(fill="x", ipady=8, pady=(0, 15))
+        CampoArredondado(pai, variavel=variavel, fundo=CORES["painel"]).pack(
+            fill="x", pady=(0, 15))
 
     def botao(self, pai, texto, comando):
         quadro = tk.Frame(pai, bg=CORES["painel"])
         quadro.pack(side="left", fill="x", expand=True, padx=4)
-        botao = tk.Canvas(quadro, height=42, bg=CORES["caramelo"], highlightthickness=0,
-                          cursor="hand2", takefocus=1)
+        botao = BotaoArredondado(quadro, texto, comando, fundo=CORES["painel"])
         botao.pack(fill="x")
-        botao.create_text(0, 0, text=texto, fill=CORES["branco"],
-                          font=("Helvetica Neue", 11, "bold"), tags="titulo")
-        botao.bind("<Configure>", lambda e, b=botao: b.coords("titulo", e.width / 2, e.height / 2))
-        for evento in ("<Button-1>", "<Return>", "<space>"):
-            botao.bind(evento, lambda e, b=botao: comando() if b.habilitado else None)
-        botao.bind("<Enter>", lambda e, b=botao: b.configure(bg=CORES["hover"]) if b.habilitado else None)
-        botao.bind("<Leave>", lambda e, b=botao: b.configure(bg=CORES["caramelo"]) if b.habilitado else None)
-        botao.habilitado = True
         return botao
 
     def atualizar_botoes(self):
@@ -130,9 +120,7 @@ class JanelaIFFARChat(tk.Tk):
                    (self.btn_sair, conectado and not self.ocupado))
         for botao, ativo in estados:
             botao.habilitado = ativo
-            botao.configure(bg=CORES["caramelo"] if ativo else CORES["borda"],
-                            cursor="hand2" if ativo else "arrow")
-            botao.itemconfigure("titulo", fill=CORES["branco"] if ativo else CORES["secundario"])
+            botao.desenhar()
         self.indicador.itemconfigure(self.bolinha, fill="#458453" if conectado else "#C84A48")
 
     def executar(self, tarefa, sucesso):
