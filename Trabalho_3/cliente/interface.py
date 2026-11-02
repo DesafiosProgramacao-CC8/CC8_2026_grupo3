@@ -28,18 +28,8 @@ class JanelaIFFARChat(tk.Tk):
 
         topo = tk.Frame(painel, bg=CORES["painel"])
         topo.pack(fill="x", padx=25, pady=(16, 0))
-        for texto, acao in (("Sair", self.fechar),
-                            ("Login", lambda: self.mostrar("login")),
-                            ("Cadastro", lambda: self.mostrar("cadastro")),
-                            ("Perfil", lambda: self.mostrar("perfil")),
-                            ("Notificações", lambda: self.mostrar("notificacoes")),
-                            ("Amigos", lambda: self.mostrar("amigos")),
-                            ("Chat", lambda: self.mostrar("chat")),
-                            ("Conexão", lambda: self.mostrar("conexao"))):
-            link = tk.Label(topo, text=texto, fg=CORES["verde"], bg=CORES["painel"],
-                            font=("Helvetica Neue", 11, "bold"), cursor="hand2", padx=10)
-            link.pack(side="right")
-            link.bind("<Button-1>", lambda evento, funcao=acao: funcao())
+        self.topo = topo
+        self.atualizar_menu()
         self.area = tk.Frame(painel, bg=CORES["painel"])
         self.area.pack(fill="both", expand=True)
         # Telas sobrepostas em uma única célula: alternar não recalcula o pack.
@@ -83,8 +73,38 @@ class JanelaIFFARChat(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.fechar)
         self.atualizar_botoes()
 
+    def atualizar_menu(self):
+        #Mostra apenas os menus permitidos para a sessão atual.
+        for item in self.topo.winfo_children():
+            item.destroy()
+        autenticado = self.conexao.conectado and self.conexao.id_usuario is not None
+        menus = ([('Conexão', lambda: self.mostrar('conexao')),
+                  ('Chat', lambda: self.mostrar('chat')),
+                  ('Amigos', lambda: self.mostrar('amigos')),
+                  ('Notificações', lambda: self.mostrar('notificacoes')),
+                  ('Perfil', lambda: self.mostrar('perfil')),
+                  ('Sair da conta', self.sair_conta)] if autenticado else
+                 [('Conexão', lambda: self.mostrar('conexao')),
+                  ('Cadastro', lambda: self.mostrar('cadastro')),
+                  ('Login', lambda: self.mostrar('login')),
+                  ('Sair', self.fechar)])
+        for texto, acao in reversed(menus):
+            link = tk.Label(self.topo, text=texto, fg=CORES['verde'], bg=CORES['painel'],
+                            font=('Helvetica Neue', 11, 'bold'), cursor='hand2', padx=10)
+            link.pack(side='right')
+            link.bind('<Button-1>', lambda evento, funcao=acao: funcao())
+
+    def sair_conta(self):
+        #Encerra a sessão e retorna ao login.
+        if self.ocupado:
+            return
+        self.executar(self.conexao.desconectar, 'Sessão encerrada.')
+        self.mostrar('login')
+
     def mostrar(self, modo):
-        """Troca apenas a tela visível, preservando a conexão TCP."""
+        """Troca a tela sem recriar a janela."""
+        if modo in ('chat', 'amigos', 'notificacoes', 'perfil') and not (self.conexao.conectado and self.conexao.id_usuario is not None):
+            return
         if modo == "conexao":
             destino = self.tela_conexao
         elif modo == "chat":
@@ -114,7 +134,7 @@ class JanelaIFFARChat(tk.Tk):
         elif modo in ("login", "cadastro"):
             if self.tela_acesso is None:
                 from telas_acesso import TelaAcesso
-                self.tela_acesso = TelaAcesso(self.area, self.mostrar)
+                self.tela_acesso = TelaAcesso(self.area, self.mostrar, self)
                 self.tela_acesso.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_acesso
             destino.mostrar(modo)
@@ -168,6 +188,7 @@ class JanelaIFFARChat(tk.Tk):
         self.ocupado = False
         self.status.set(resultado)
         self.atualizar_botoes()
+        self.atualizar_menu()
 
     def conectar(self):
         host = self.host.get().strip()
@@ -185,11 +206,12 @@ class JanelaIFFARChat(tk.Tk):
         self.executar(self.conexao.ping, "PONG (5) recebido: servidor disponível.")
 
     def desconectar(self):
-        self.conexao.desconectar()
-        self.status.set("Desconectado. Socket encerrado.")
-        self.atualizar_botoes()
+        if self.ocupado:
+            return
+        self.executar(self.conexao.desconectar, "Desconectado. Sessão encerrada.")
+        self.mostrar('login')
 
     def fechar(self):
-        if not self.ocupado:
-            self.conexao.desconectar()
+        #Fecha a janela sem bloquear a interface.
+        threading.Thread(target=self.conexao.desconectar, daemon=True).start()
         self.destroy()

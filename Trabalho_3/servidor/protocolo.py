@@ -1,7 +1,6 @@
 
-from ..iffarql.erros import ErroIFFARQL
 from .regras_negocio import ErroNegocio
-
+from ..iffarql.erros import ErroIFFARQL
 
 TERMINADOR = "#\n"
 
@@ -72,7 +71,7 @@ def interpretar_mensagem(mensagem):
     if not conteudo.endswith("|"):
         return None
 
-    if "#" in conteudo or "\n" in conteudo or "\r" in conteudo:
+    if "#" in conteudo or "\n" in conteudo:
         return None
 
     partes = conteudo.split("|")
@@ -80,14 +79,14 @@ def interpretar_mensagem(mensagem):
     codigo = partes[0]
     parametros = partes[1:-1]
 
-    if not codigo.isascii() or not codigo.isdecimal() or len(codigo) > 5:
+    if not codigo.isdigit():
         return None
 
     return int(codigo), parametros
 
 
 def id_valido(valor):
-    return valor.isascii() and valor.isdecimal() and len(valor) <= 18 and int(valor) > 0
+    return valor.isdigit() and int(valor) > 0
 
 
 def validar_parametros(codigo, parametros):
@@ -177,7 +176,7 @@ def validar_parametros(codigo, parametros):
     return False
 
 
-def processar_comando(mensagem, servico=None, id_conexao=None):
+def processar_comando(mensagem, servico, id_conexao):
     resultado = interpretar_mensagem(mensagem)
 
     if resultado is None:
@@ -212,29 +211,17 @@ def processar_comando(mensagem, servico=None, id_conexao=None):
             categoria, descricao
         ), False
 
-    # Comandos basicos ja implementados.
+    #Comandos de conexao e verificacao.
     if codigo == 2:
         return "3|#\n", False
 
     if codigo == 4:
         return "5|#\n", False
 
-    if servico is not None:
-        try:
-            resposta = servico.executar(codigo, parametros, id_conexao)
-            return resposta, codigo == 32
-        except ErroNegocio as erro:
-            return criar_mensagem_erro(categoria, str(erro)), False
-        except ErroIFFARQL:
-            return criar_mensagem_erro(
-                categoria, "Não foi possível acessar ou salvar o banco"
-            ), False
-
-    if codigo == 32:
-        return "33|#\n", True
-
-    # Os demais comandos aguardam suas regras de negocio.
-    return criar_mensagem_erro(
-        categoria,
-        "Operacao ainda nao integrada"
-    ), False
+    #Encaminha os demais comandos ao servico de negocio.
+    try:
+        resposta = servico.executar(codigo, parametros, id_conexao)
+        return resposta, codigo == 32
+    except (ErroNegocio, ErroIFFARQL, ValueError) as erro:
+        descricao = str(erro).replace("|", " ").replace("#", " ").replace("\n", " ")
+        return criar_mensagem_erro(categoria, descricao), False

@@ -1,5 +1,7 @@
 # Telas de cadastro e login, sem comunicação com o servidor nesta etapa.
 import re
+import threading
+from conexao import ErroConexao
 import tkinter as tk
 from datetime import date, datetime
 from hash_senha import gerar_hash_senha
@@ -51,9 +53,10 @@ def validar_login(apelido, senha):
 
 
 class TelaAcesso(tk.Frame):
-    def __init__(self, mestre, navegar):
+    def __init__(self, mestre, navegar, aplicacao=None):
         super().__init__(mestre, bg=CORES["painel"])
         self.navegar = navegar
+        self.aplicacao = aplicacao
         self.modo = "login"
         self.campos = {}
         self.mensagem = tk.StringVar()
@@ -191,6 +194,42 @@ class TelaAcesso(tk.Frame):
             self.mensagem.set(str(erro_hash))
             return
 
-        # Não exibir nem registrar senha ou hash em logs.
-        self.mensagem.set("Dados validados e senha codificada. "
-                          "Comando preparado localmente; envio ainda não integrado.")
+        #Executa cadastro e login em segundo plano.
+        if not self.aplicacao:
+            self.mensagem.set("Aplicação não conectada.")
+            return
+        app = self.aplicacao
+        def tarefa():
+            if not app.conexao.conectado:
+                app.conexao.conectar(app.host.get().strip(), int(app.porta.get()))
+            codigo, campos = app.conexao.requisitar(
+                16 if self.modo == "login" else 8,
+                *([dados["apelido"], senha_hash] if self.modo == "login" else
+                  [dados["nome"], dados["apelido"],
+                   formatar_nascimento(dados["nascimento"]), senha_hash])
+            )
+            if codigo not in (17, 9):
+                raise ErroConexao("Resposta inesperada do servidor")
+            if codigo == 17:
+                app.conexao.id_usuario = int(campos[0])
+            return codigo
+
+        self.mensagem.set("Aguardando servidor...")
+        def trabalho():
+            try:
+                resultado = tarefa()
+                texto = ("Login realizado. ID: " + str(app.conexao.id_usuario)
+                         if resultado == 17 else "Cadastro realizado. Faça login.")
+            except (ErroConexao, OSError, ValueError) as erro:
+                resultado, texto = None, str(erro)
+            def concluir():
+                self.mensagem.set(texto)
+                app.atualizar_botoes()
+                app.atualizar_menu()
+                if resultado == 17:
+                    app.mostrar("chat")
+            try:
+                app.after(0, concluir)
+            except RuntimeError:
+                pass
+        threading.Thread(target=trabalho, daemon=True).start()

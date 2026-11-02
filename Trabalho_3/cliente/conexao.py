@@ -5,6 +5,7 @@ import threading
 
 TERMINADOR = "#\n"
 LIMITE_BYTES = 4096
+from protocolo_cliente import criar_mensagem, interpretar_resposta, ErroProtocolo
 
 
 class ErroConexao(Exception):
@@ -15,6 +16,8 @@ class ConexaoTCP:
         self._socket = None
         self._arquivo = None
         self._lock = threading.Lock()
+        self.id_usuario = None
+        self.avisos = []
 
     @property
     def conectado(self):
@@ -33,6 +36,34 @@ class ConexaoTCP:
             except (OSError, ErroConexao) as erro:
                 self._fechar()
                 raise ErroConexao(str(erro)) from erro
+
+    def requisitar(self, codigo, *parametros):
+        #Envia comandos reais e interpreta a resposta.
+        with self._lock:
+            try:
+                self._socket.sendall(criar_mensagem(codigo, *parametros).encode("utf-8"))
+                while True:
+                    resposta = self._ler()
+                    numero, campos = interpretar_resposta(resposta)
+                    if numero in (257, 259):
+                        self.avisos.append((numero, campos))
+                        continue
+                    if numero == 32768:
+                        raise ErroConexao(campos[1] or campos[0])
+                    return numero, campos
+            except (OSError, ErroProtocolo, AttributeError) as erro:
+                self._fechar()
+                raise ErroConexao(str(erro)) from erro
+
+    def _ler(self):
+        dados = self._arquivo.readline(LIMITE_BYTES + 1)
+        if not dados or len(dados) > LIMITE_BYTES:
+            self._fechar()
+            raise ErroConexao("Conexão encerrada ou resposta muito longa")
+        resposta = dados.decode("utf-8")
+        if not resposta.endswith(TERMINADOR):
+            raise ErroConexao("Resposta sem terminador")
+        return resposta
 
     def ping(self):
         with self._lock:
@@ -58,7 +89,12 @@ class ConexaoTCP:
             raise ErroConexao(str(erro)) from erro
 
     def desconectar(self):
-        # O comando 32 exige ID autenticado. Antes do login, fecha-se o socket.
+        #Encerra a sessão autenticada antes de fechar o socket.
+        if self.conectado and self.id_usuario:
+            try:
+                self.requisitar(32, self.id_usuario)
+            except ErroConexao:
+                pass
         with self._lock:
             self._fechar()
 
@@ -77,3 +113,4 @@ class ConexaoTCP:
             self._socket.close()
         self._arquivo = None
         self._socket = None
+        self.id_usuario = None
