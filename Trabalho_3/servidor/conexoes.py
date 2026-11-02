@@ -1,5 +1,6 @@
 
 import threading
+import socket
 
 
 class GerenciadorConexoes:
@@ -17,7 +18,9 @@ class GerenciadorConexoes:
             self.conexoes[id_conexao] = {
                 "socket": conexao,
                 "endereco": endereco,
-                "id_usuario": None
+                "id_usuario": None,
+                "trava_envio": threading.Lock(),
+                "receber_avisos": False,
             }
 
             return id_conexao
@@ -87,3 +90,43 @@ class GerenciadorConexoes:
     def quantidade_conexoes(self):
         with self.lock:
             return len(self.conexoes)
+
+    def enviar_resposta(self, id_conexao, mensagem):
+        with self.lock:
+            dados = self.conexoes.get(id_conexao)
+        if dados is None:
+            raise ConnectionError("Conexão não encontrada")
+        # Uma resposta e um aviso não podem misturar bytes no mesmo socket
+        with dados["trava_envio"]:
+            dados["socket"].sendall(mensagem.encode("utf-8"))
+
+    def habilitar_avisos(self, id_conexao):
+        with self.lock:
+            dados = self.conexoes.get(id_conexao)
+            if dados is not None and dados["id_usuario"] is not None:
+                # Primeiro o cliente recebe a confirmação de login
+                dados["receber_avisos"] = True
+
+    def enviar_para_usuario(self, id_usuario, mensagem):
+        with self.lock:
+            destino = None
+            for id_conexao, dados in self.conexoes.items():
+                if dados["id_usuario"] == id_usuario and dados["receber_avisos"]:
+                    destino = id_conexao
+                    break
+        if destino is None:
+            return False
+        try:
+            self.enviar_resposta(destino, mensagem)
+            return True
+        except OSError:
+            return False
+
+    def encerrar_conexoes(self):
+        with self.lock:
+            conexoes = [dados["socket"] for dados in self.conexoes.values()]
+        for conexao in conexoes:
+            try:
+                conexao.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass

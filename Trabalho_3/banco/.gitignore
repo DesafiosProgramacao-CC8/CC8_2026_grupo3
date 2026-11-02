@@ -1,0 +1,3 @@
+# O banco local contém cadastros e conversas dos testes manuais
+*.json
+*.tmp
