@@ -100,6 +100,8 @@ class JanelaIFFARChat(tk.Tk):
             return
         if self.tela_chat is not None:
             self.tela_chat.ativo = False
+        if self.tela_amizades is not None:
+            self.tela_amizades.ativo = False
         self.executar(self.conexao.desconectar, 'Sessão encerrada.')
         self.mostrar('login')
 
@@ -118,7 +120,7 @@ class JanelaIFFARChat(tk.Tk):
         elif modo == "amigos":
             if self.tela_amizades is None:
                 from tela_amizades import TelaAmizades
-                self.tela_amizades = TelaAmizades(self.area)
+                self.tela_amizades = TelaAmizades(self.area, self)
                 self.tela_amizades.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_amizades
         elif modo == "notificacoes":
@@ -143,6 +145,11 @@ class JanelaIFFARChat(tk.Tk):
         else:
             return
         destino.tkraise()
+        if self.tela_amizades is not None:
+            estava_ativo = self.tela_amizades.ativo
+            self.tela_amizades.ativo = (modo == "amigos")
+            if modo == "amigos" and not estava_ativo:
+                self.tela_amizades.iniciar_consulta()
         if self.tela_chat is not None:
             self.tela_chat.ativo = (modo == "chat")
             if modo == "chat":
@@ -216,6 +223,8 @@ class JanelaIFFARChat(tk.Tk):
             return
         if self.tela_chat is not None:
             self.tela_chat.ativo = False
+        if self.tela_amizades is not None:
+            self.tela_amizades.ativo = False
         self.executar(self.conexao.desconectar, "Desconectado. Sessão encerrada.")
         self.mostrar('login')
 

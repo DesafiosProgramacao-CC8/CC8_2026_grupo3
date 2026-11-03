@@ -1,4 +1,4 @@
-#Tela de perfil em modo local, sem consulta ou atualização no servidor.
+#Tela de perfil do IFFARCHAT.
 import tkinter as tk
 from componentes import BotaoArredondado, CampoArredondado
 from telas_acesso import formatar_nascimento
@@ -11,7 +11,7 @@ class TelaPerfil(tk.Frame):
     def __init__(self, mestre):
         super().__init__(mestre, bg=CORES["fundo"])
         self.campos = {}
-        self.aviso = tk.StringVar(value="Prévia local: perfil ainda não carregado do servidor.")
+        self.aviso = tk.StringVar(value="")
         #Centraliza o formulário como no Cadastro, sem cortar o título.
         self.canvas = tk.Canvas(self, bg=CORES["fundo"], highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True)
@@ -52,4 +52,4 @@ class TelaPerfil(tk.Frame):
 
     def salvar(self):
         #Não apresenta sucesso falso enquanto não houver autenticação.
-        self.aviso.set("A edição do perfil estará disponível após a integração com o servidor.")
+        self.aviso.set("Não foi possível salvar: edição do perfil indisponível.")

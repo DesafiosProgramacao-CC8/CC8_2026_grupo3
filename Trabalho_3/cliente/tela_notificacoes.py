@@ -1,4 +1,4 @@
-#Tela de notificações preparada para integração com o servidor.
+#Tela de notificações do IFFARCHAT.
 import tkinter as tk
 from componentes import BotaoArredondado
 from tela_chat import PainelArredondado
@@ -39,7 +39,7 @@ class TelaNotificacoes(tk.Frame):
                  fg=CORES["texto"], bg="#E9DCCB").pack(anchor="w", padx=12)
         painel = PainelArredondado(direita, "#F5EFE7")
         painel.pack(fill="both", expand=True)
-        tk.Label(painel.interior, text="Nenhuma notificação carregada.\nAguardando integração com o servidor.",
+        tk.Label(painel.interior, text="Nenhuma notificação disponível.",
                  bg="#F5EFE7", fg=CORES["texto"], justify="center",
                  font=("Helvetica Neue", 12)).place(relx=0.5, rely=0.5, anchor="center")
         self.selecionar("todas")

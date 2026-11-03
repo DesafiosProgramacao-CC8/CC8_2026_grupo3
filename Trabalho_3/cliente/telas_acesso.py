@@ -112,7 +112,7 @@ class TelaAcesso(tk.Frame):
         self.botao(corpo, "Criar conta" if self.modo == "cadastro" else "Entrar", self.validar, CORES["caramelo"])
         if self.modo == "login":
             self.botao(corpo, "Criar uma conta", lambda: self.mostrar("cadastro"), CORES["verde"])
-        self.mensagem.set("Prévia da interface: envio ao servidor ainda não integrado.")
+        self.mensagem.set("")
         tk.Label(corpo, textvariable=self.mensagem, bg=CORES["painel"], fg=CORES["secundario"],
                  wraplength=390, justify="center", font=("Helvetica Neue", 10)).pack(fill="x", pady=(10, 0))
         self.after_idle(self.ajustar)

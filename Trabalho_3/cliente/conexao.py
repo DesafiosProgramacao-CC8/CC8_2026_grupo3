@@ -55,6 +55,24 @@ class ConexaoTCP:
                 self._fechar()
                 raise ErroConexao(str(erro)) from erro
 
+    def enviar_sem_resposta(self, codigo, *parametros):
+        #Os comandos de amizade não possuem resposta imediata.
+        with self._lock:
+            if not self.conectado:
+                raise ErroConexao("Não há conexão ativa")
+            try:
+                self._socket.sendall(criar_mensagem(codigo, *parametros).encode("utf-8"))
+            except OSError as erro:
+                self._fechar()
+                raise ErroConexao(str(erro)) from erro
+
+    def retirar_avisos(self):
+        #Retira os avisos recebidos durante as requisições.
+        with self._lock:
+            avisos = self.avisos[:]
+            self.avisos.clear()
+            return avisos
+
     def _ler(self):
         dados = self._arquivo.readline(LIMITE_BYTES + 1)
         if not dados or len(dados) > LIMITE_BYTES:
