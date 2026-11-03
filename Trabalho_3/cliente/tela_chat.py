@@ -1,5 +1,7 @@
 #Interface do chat geral e privado, em modo de prévia local.
 import tkinter as tk
+import threading
+from conexao import ErroConexao
 from protocolo_cliente import criar_mensagem
 from componentes import BotaoArredondado, CampoArredondado
 
@@ -36,14 +38,20 @@ class PainelArredondado(tk.Frame):
 
 
 class TelaChat(tk.Frame):
-    def __init__(self, mestre, voltar):
+    def __init__(self, mestre, voltar, aplicacao=None):
         super().__init__(mestre, bg=CORES["painel"])
         self.voltar = voltar
+        self.aplicacao = aplicacao
+        self.ativo = False
+        self.consultando = False
+        self.historico_carregado = set()
+        self._consulta_agendada = False
         self.tipo = "geral"
         self.remetente = tk.StringVar()
         self.destinatario = tk.StringVar()
         self.busca = tk.StringVar()
-        self.aviso = tk.StringVar(value="Prévia local: mensagens não são enviadas ao servidor.")
+        self.aviso = tk.StringVar(value="")
+        self.enviando = False
         self.montar()
 
     def botao(self, pai, texto, comando, cor=None):
@@ -107,7 +115,7 @@ class TelaChat(tk.Frame):
             insertbackground=CORES["texto"]
         )
         self.area_mensagens.pack(fill="both", expand=True)
-        self.area_mensagens.insert("end", "\nNenhuma mensagem carregada.\nA comunicação será integrada posteriormente.")
+        self.area_mensagens.insert("end", "")
         self.area_mensagens.configure(state="disabled")
 
         rodape = tk.Frame(principal, bg=CORES["painel"], pady=10)
@@ -129,6 +137,8 @@ class TelaChat(tk.Frame):
         campo_mensagem = CampoArredondado(linha, fundo=CORES["painel"])
         campo_mensagem.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.entrada = campo_mensagem.entrada
+        #Envia a mensagem com Enter.
+        self.entrada.bind("<Return>", lambda evento: (self.preparar(), "break")[1])
         #Placeholder da mensagem sem alterar o conteúdo enviado.
         self._placeholder = "Digite sua mensagem..."
         self._placeholder_ativo = False
@@ -165,6 +175,10 @@ class TelaChat(tk.Frame):
         self.tipo = tipo
         for item, selecionado in ((self.aba_geral, tipo == "geral"), (self.aba_privada, tipo == "privada")):
             item.definir_cor(CORES["caramelo"] if selecionado else CORES["selecao"])
+        self.area_mensagens.configure(state="normal")
+        self.area_mensagens.delete("1.0", "end")
+        self.area_mensagens.insert("end", "")
+        self.area_mensagens.configure(state="disabled")
         self.titulo.configure(text="Conversa geral" if tipo == "geral" else "Conversa privada")
         self.subtitulo.configure(text="Todos os usuários" if tipo == "geral" else "Conversa individual")
         if tipo == "privada":
@@ -176,7 +190,9 @@ class TelaChat(tk.Frame):
         self.busca.set("")
         self._restaurar_busca_placeholder()
         self.atualizar_lista()
-        self.aviso.set("Prévia local: mensagens não são enviadas ao servidor.")
+        self.aviso.set("")
+        if self.ativo:
+            self.iniciar_consulta()
 
     def _configurar_placeholder(self, entrada, texto):
         #Mostra uma dica sem incluir o texto no comando enviado.
@@ -209,6 +225,8 @@ class TelaChat(tk.Frame):
             self._placeholder_ativo = True
 
     def preparar(self):
+        if self.enviando:
+            return
         #Prepara o comando sem transmitir mensagens ao servidor.
         origem = self.remetente.get().strip()
         if origem == "Digite seu ID...":
@@ -217,9 +235,10 @@ class TelaChat(tk.Frame):
         if destino == "Digite o ID do destinatário...":
             destino = ""
         mensagem = "" if self._placeholder_ativo else self.entrada.get().strip()
-        if not origem.isdigit() or int(origem) <= 0:
-            self.aviso.set("Informe um ID de remetente positivo.")
+        if not self.aplicacao or not self.aplicacao.conexao.id_usuario:
+            self.aviso.set("Faça login antes de enviar mensagens.")
             return
+        origem = str(self.aplicacao.conexao.id_usuario)
         if self.tipo == "privada" and (not destino.isdigit() or int(destino) <= 0):
             self.aviso.set("Informe um ID de destinatário positivo.")
             return
@@ -231,4 +250,103 @@ class TelaChat(tk.Frame):
         except (ValueError, TypeError) as erro:
             self.aviso.set(f"Mensagem inválida: {erro}")
             return
-        self.aviso.set("Comando ENVIARMENSAGEM (2048) preparado localmente. Nada foi enviado.")
+        self.enviar(destino, mensagem)
+
+    def executar_rede(self, tarefa, concluir):
+        #Executa as requisicoes sem bloquear a interface.
+        def trabalho():
+            try:
+                resposta, erro = tarefa(), None
+            except (ErroConexao, OSError, ValueError) as falha:
+                resposta, erro = None, str(falha)
+            try:
+                self.after(0, lambda: concluir(resposta, erro))
+            except RuntimeError:
+                pass
+        threading.Thread(target=trabalho, daemon=True).start()
+
+    def enviar(self, destino, mensagem):
+        self.enviando = True
+        app = self.aplicacao
+        usuario = app.conexao.id_usuario
+        def tarefa():
+            codigo, _ = app.conexao.requisitar(2048, usuario, destino, mensagem)
+            if codigo != 2049:
+                raise ErroConexao("O servidor não confirmou o envio.")
+        def concluir(_, erro):
+            self.enviando = False
+            if erro:
+                self.aviso.set("Falha no envio: " + erro)
+                return
+            self.entrada.delete(0, "end")
+            self._restaurar_placeholder()
+            self.aviso.set("Mensagem enviada.")
+            self.consultar()
+        self.executar_rede(tarefa, concluir)
+
+    def mostrar_mensagens(self, campos, historico=False):
+        #Exibe as mensagens na ordem definida pelo protocolo.
+        if not campos:
+            return
+        self.area_mensagens.configure(state="normal")
+        if not self.area_mensagens.get("1.0", "end").strip():
+            self.area_mensagens.delete("1.0", "end")
+        for indice in range(0, len(campos), 5):
+            grupo = campos[indice:indice + 5]
+            if historico:
+                remetente, data, hora, minuto, texto = grupo
+            else:
+                remetente, texto, data, hora, minuto = grupo
+            self.area_mensagens.insert("end", f"[{data} {hora.zfill(2)}:{minuto.zfill(2)}] {remetente}: {texto}\n")
+        self.area_mensagens.see("end")
+        self.area_mensagens.configure(state="disabled")
+
+    def iniciar_consulta(self):
+        if not self.ativo or not self.aplicacao.conexao.id_usuario:
+            return
+        self.remetente.set(str(self.aplicacao.conexao.id_usuario))
+        if not self.consultando and not self._consulta_agendada:
+            self.consultar()
+
+    def consultar(self):
+        if not self.ativo or self.consultando or not self.aplicacao.conexao.id_usuario:
+            return
+        destino = self.destinatario.get().strip() if self.tipo == "privada" else ""
+        if destino == "Digite o ID do destinatário...":
+            destino = ""
+        if self.tipo == "privada" and (not destino.isdigit() or int(destino) <= 0):
+            self.agendar_consulta()
+            return
+        self.consultando = True
+        app = self.aplicacao
+        usuario = app.conexao.id_usuario
+        chave = (usuario, destino)
+        historico = bool(destino and chave not in self.historico_carregado)
+        def tarefa():
+            codigo, campos = app.conexao.requisitar(4096 if historico else 1024, usuario, destino)
+            if codigo != (4097 if historico else 1025):
+                raise ErroConexao("Resposta inesperada ao consultar mensagens.")
+            return campos
+        def concluir(campos, erro):
+            self.consultando = False
+            if erro:
+                self.aviso.set("Falha na consulta: " + erro)
+            elif usuario == app.conexao.id_usuario and self.ativo:
+                atual = self.destinatario.get().strip() if self.tipo == "privada" else ""
+                if atual == "Digite o ID do destinatário...":
+                    atual = ""
+                if atual == destino:
+                    if historico:
+                        self.historico_carregado.add(chave)
+                    self.mostrar_mensagens(campos, historico)
+            self.agendar_consulta()
+        self.executar_rede(tarefa, concluir)
+
+    def agendar_consulta(self):
+        if not self.ativo or self._consulta_agendada:
+            return
+        self._consulta_agendada = True
+        def repetir():
+            self._consulta_agendada = False
+            self.iniciar_consulta()
+        self.after(3000, repetir)

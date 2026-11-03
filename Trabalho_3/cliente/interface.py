@@ -98,6 +98,8 @@ class JanelaIFFARChat(tk.Tk):
         #Encerra a sessão e retorna ao login.
         if self.ocupado:
             return
+        if self.tela_chat is not None:
+            self.tela_chat.ativo = False
         self.executar(self.conexao.desconectar, 'Sessão encerrada.')
         self.mostrar('login')
 
@@ -110,7 +112,7 @@ class JanelaIFFARChat(tk.Tk):
         elif modo == "chat":
             if self.tela_chat is None:
                 from tela_chat import TelaChat
-                self.tela_chat = TelaChat(self.area, lambda: self.mostrar("conexao"))
+                self.tela_chat = TelaChat(self.area, lambda: self.mostrar("conexao"), self)
                 self.tela_chat.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_chat
         elif modo == "amigos":
@@ -141,6 +143,10 @@ class JanelaIFFARChat(tk.Tk):
         else:
             return
         destino.tkraise()
+        if self.tela_chat is not None:
+            self.tela_chat.ativo = (modo == "chat")
+            if modo == "chat":
+                self.tela_chat.iniciar_consulta()
 
     def campo(self, pai, titulo, variavel):
         tk.Label(pai, text=titulo, fg=CORES["secundario"], bg=CORES["painel"],
@@ -208,6 +214,8 @@ class JanelaIFFARChat(tk.Tk):
     def desconectar(self):
         if self.ocupado:
             return
+        if self.tela_chat is not None:
+            self.tela_chat.ativo = False
         self.executar(self.conexao.desconectar, "Desconectado. Sessão encerrada.")
         self.mostrar('login')
 

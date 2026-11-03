@@ -106,6 +106,8 @@ class TelaAcesso(tk.Frame):
             if chave == "nascimento":
                 entrada.bind("<KeyPress>", lambda evento: self.tecla_data(evento))
                 entrada.bind("<<Paste>>", lambda evento: self.after(10, self.ajustar_data_colada, evento.widget))
+            #Confirma cadastro ou login com Enter.
+            entrada.bind("<Return>", lambda evento: (self.validar(), "break")[1])
             self.campos[chave] = entrada
         self.botao(corpo, "Criar conta" if self.modo == "cadastro" else "Entrar", self.validar, CORES["caramelo"])
         if self.modo == "login":
@@ -171,6 +173,8 @@ class TelaAcesso(tk.Frame):
         botao.pack(fill="x", pady=(5, 0))
 
     def validar(self):
+        if getattr(self, "_enviando", False):
+            return
         dados = {chave: entrada.get() for chave, entrada in self.campos.items()}
         if self.modo == "login":
             erro = validar_login(dados["apelido"], dados["senha"])
@@ -214,6 +218,7 @@ class TelaAcesso(tk.Frame):
                 app.conexao.id_usuario = int(campos[0])
             return codigo
 
+        self._enviando = True
         self.mensagem.set("Aguardando servidor...")
         def trabalho():
             try:
@@ -223,6 +228,7 @@ class TelaAcesso(tk.Frame):
             except (ErroConexao, OSError, ValueError) as erro:
                 resultado, texto = None, str(erro)
             def concluir():
+                self._enviando = False
                 self.mensagem.set(texto)
                 app.atualizar_botoes()
                 app.atualizar_menu()
