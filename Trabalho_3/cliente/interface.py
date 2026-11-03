@@ -98,12 +98,20 @@ class JanelaIFFARChat(tk.Tk):
         #Encerra a sessão e retorna ao login.
         if self.ocupado:
             return
+        if self.tela_notificacoes is not None:
+            self.tela_notificacoes.ativo = False
         if self.tela_chat is not None:
             self.tela_chat.ativo = False
         if self.tela_amizades is not None:
             self.tela_amizades.ativo = False
         self.executar(self.conexao.desconectar, 'Sessão encerrada.')
         self.mostrar('login')
+
+    def abrir_solicitacoes(self):
+        #Abre os pedidos de amizade na mesma janela.
+        self.mostrar("amigos")
+        if self.tela_amizades is not None:
+            self.tela_amizades.selecionar("solicitacoes")
 
     def mostrar(self, modo):
         """Troca a tela sem recriar a janela."""
@@ -126,13 +134,13 @@ class JanelaIFFARChat(tk.Tk):
         elif modo == "notificacoes":
             if self.tela_notificacoes is None:
                 from tela_notificacoes import TelaNotificacoes
-                self.tela_notificacoes = TelaNotificacoes(self.area)
+                self.tela_notificacoes = TelaNotificacoes(self.area, self, self.abrir_solicitacoes)
                 self.tela_notificacoes.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_notificacoes
         elif modo == "perfil":
             if self.tela_perfil is None:
                 from tela_perfil import TelaPerfil
-                self.tela_perfil = TelaPerfil(self.area)
+                self.tela_perfil = TelaPerfil(self.area, self)
                 self.tela_perfil.grid(row=0, column=0, sticky="nsew")
             destino = self.tela_perfil
         elif modo in ("login", "cadastro"):
@@ -145,6 +153,12 @@ class JanelaIFFARChat(tk.Tk):
         else:
             return
         destino.tkraise()
+        if modo == "perfil":
+            destino.carregar()
+        if self.tela_notificacoes is not None:
+            self.tela_notificacoes.ativo = (modo == "notificacoes")
+            if modo == "notificacoes":
+                self.tela_notificacoes.iniciar_consulta()
         if self.tela_amizades is not None:
             estava_ativo = self.tela_amizades.ativo
             self.tela_amizades.ativo = (modo == "amigos")
@@ -221,6 +235,8 @@ class JanelaIFFARChat(tk.Tk):
     def desconectar(self):
         if self.ocupado:
             return
+        if self.tela_notificacoes is not None:
+            self.tela_notificacoes.ativo = False
         if self.tela_chat is not None:
             self.tela_chat.ativo = False
         if self.tela_amizades is not None:

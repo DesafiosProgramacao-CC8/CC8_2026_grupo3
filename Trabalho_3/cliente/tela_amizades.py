@@ -200,8 +200,9 @@ class TelaAmizades(tk.Frame):
     def acao(self, uid, acao):
         if acao == "Conversar":
             self.aplicacao.mostrar("chat")
-            self.aplicacao.tela_chat.selecionar("privada")
-            self.aplicacao.tela_chat.destinatario.set(str(uid))
+            self.aplicacao.tela_chat.conversas[uid] = next(
+                (nome for amigo, nome in self.amigos if amigo == uid), f"Usuário {uid}")
+            self.aplicacao.tela_chat.abrir_conversa(uid)
             return
         self._enviar(256, uid)
 
