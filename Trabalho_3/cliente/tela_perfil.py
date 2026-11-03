@@ -3,7 +3,7 @@ import tkinter as tk
 import threading
 from datetime import datetime, date
 from conexao import ErroConexao
-from hash_senha import gerar_hash_senha
+from Trabalho_3.seguranca.hash_senha import gerar_hash_senha
 from componentes import BotaoArredondado, CampoArredondado
 from telas_acesso import formatar_nascimento
 

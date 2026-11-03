@@ -4,7 +4,7 @@ import threading
 from conexao import ErroConexao
 import tkinter as tk
 from datetime import date, datetime
-from hash_senha import gerar_hash_senha
+from Trabalho_3.seguranca.hash_senha import gerar_hash_senha
 from protocolo_cliente import criar_mensagem
 from componentes import BotaoArredondado, CampoArredondado
 
@@ -186,7 +186,7 @@ class TelaAcesso(tk.Frame):
             return
 
         # A senha é codificada no cliente, antes de qualquer envio à rede.
-        # Neste commit apenas preparamos o comando; não o transmitimos.
+        #Monta o comando antes do envio para validar os campos.
         try:
             senha_hash = gerar_hash_senha(dados["senha"])
             if self.modo == "login":

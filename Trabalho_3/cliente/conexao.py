@@ -51,7 +51,7 @@ class ConexaoTCP:
                     if numero == 32768:
                         raise ErroConexao(campos[1] or campos[0])
                     return numero, campos
-            except (OSError, ErroProtocolo, AttributeError) as erro:
+            except (OSError, ErroProtocolo, AttributeError, UnicodeError) as erro:
                 self._fechar()
                 raise ErroConexao(str(erro)) from erro
 
@@ -61,10 +61,24 @@ class ConexaoTCP:
             if not self.conectado:
                 raise ErroConexao("Não há conexão ativa")
             try:
-                self._socket.sendall(criar_mensagem(codigo, *parametros).encode("utf-8"))
-            except OSError as erro:
+                #O PING marca o fim da resposta, que pode ser um erro.
+                self._socket.sendall((criar_mensagem(codigo, *parametros) + "4|#\n").encode("utf-8"))
+                erro_servidor = None
+                while True:
+                    numero, campos = interpretar_resposta(self._ler())
+                    if numero in (257, 259):
+                        self.avisos.append((numero, campos))
+                    elif numero == 32768:
+                        erro_servidor = campos[1] or campos[0]
+                    elif numero == 5:
+                        break
+                    else:
+                        raise ErroProtocolo("Resposta inesperada do servidor.")
+            except (OSError, ErroProtocolo, UnicodeError) as erro:
                 self._fechar()
                 raise ErroConexao(str(erro)) from erro
+            if erro_servidor:
+                raise ErroConexao(erro_servidor)
 
     def retirar_avisos(self):
         #Retira os avisos recebidos durante as requisições.
@@ -86,6 +100,14 @@ class ConexaoTCP:
     def ping(self):
         with self._lock:
             resposta = self._trocar("4|#\n")
+            #Guarda avisos de amizade que chegaram antes do PONG.
+            while resposta.startswith(("257|", "259|")):
+                try:
+                    self.avisos.append(interpretar_resposta(resposta))
+                    resposta = self._ler()
+                except (OSError, ErroProtocolo, UnicodeError) as erro:
+                    self._fechar()
+                    raise ErroConexao(str(erro)) from erro
             if resposta != "5|#\n":
                 raise ErroConexao(f"Resposta inesperada: {resposta.strip()}")
             return True
