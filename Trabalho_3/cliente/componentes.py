@@ -78,17 +78,20 @@ class CampoArredondado(tk.Frame):
         self.prefixo = prefixo
         self.somente_leitura = somente_leitura
         self.cor_campo = "#F5EFE7" if somente_leitura else "#FFFFFF"
-        self.canvas = tk.Canvas(self, height=42, bg=fundo, bd=0, highlightthickness=0)
+        #Toda alteração do texto passa pela variável, inclusive a digitação.
+        self.variavel = variavel if variavel is not None else tk.StringVar(self)
+        self.dica = None
+        #Largura inicial pequena; o layout de cada tela expande o campo.
+        self.canvas = tk.Canvas(self, height=42, width=largura or 150, bg=fundo, bd=0,
+                                highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
-        self.entrada = tk.Entry(self.canvas, textvariable=variavel, show="•" if senha else "",
+        self.entrada = tk.Entry(self.canvas, textvariable=self.variavel, show="•" if senha else "",
                                 bg=self.cor_campo, fg="#27251F", relief="flat", bd=0,
                                 insertbackground="#27251F", highlightthickness=0, font=("Helvetica Neue", 11), **opcoes)
         self.item = self.canvas.create_window(42 if prefixo else 14, 9, anchor="nw", window=self.entrada)
         self.canvas.bind("<Configure>", self._redesenhar)
-        if largura:
-            self.configure(width=largura)
         if placeholder:
-            self.entrada.insert(0, placeholder)
+            self.definir_dica(placeholder)
         if somente_leitura:
             self._bloquear_edicao()
 
@@ -99,6 +102,34 @@ class CampoArredondado(tk.Frame):
         self.entrada.bind("<Key>", lambda evento: None if evento.keysym in permitidas else "break")
         for evento in ("<<Paste>>", "<<Cut>>", "<<Clear>>", "<<PasteSelection>>"):
             self.entrada.bind(evento, lambda _evento: "break")
+
+    def definir_dica(self, texto):
+        #Mostra a dica sobre o campo, sem colocá-la no conteúdo.
+        if self.dica is None:
+            self.dica = tk.Label(self.canvas, bg=self.cor_campo, fg="#8B857C", bd=0,
+                                 padx=0, pady=0, anchor="w", cursor="xterm",
+                                 font=("Helvetica Neue", 11))
+            self.dica.bind("<Button-1>", self._focar_entrada)
+            self.variavel.trace_add("write", lambda *_: self._atualizar_dica())
+        self.dica.configure(text=texto)
+        self._atualizar_dica()
+
+    def _focar_entrada(self, _evento=None):
+        #O clique na dica leva o cursor para o campo.
+        self.entrada.focus_set()
+        self.entrada.icursor("end")
+        return "break"
+
+    def _atualizar_dica(self):
+        #Exibe a dica somente quando o campo estiver vazio.
+        if self.dica is None:
+            return
+        #Lê a variável, que muda antes do texto exibido no Entry.
+        if self.variavel.get():
+            self.dica.place_forget()
+        else:
+            self.dica.place(in_=self.entrada, x=1, rely=0.5, anchor="w")
+            self.dica.lift()
 
     def definir_texto(self, texto):
         #Preenche o campo, inclusive quando for somente leitura.

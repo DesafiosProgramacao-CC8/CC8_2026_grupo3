@@ -1,6 +1,7 @@
 #Interface do chat geral e privado, em modo de prévia local.
 import tkinter as tk
 import threading
+from datetime import datetime
 from conexao import ErroConexao
 from protocolo_cliente import criar_mensagem
 from componentes import BotaoArredondado, CampoArredondado, retangulo_arredondado
@@ -54,6 +55,11 @@ class TelaChat(tk.Frame):
         self.aviso = tk.StringVar(value="")
         self.enviando = False
         self.conversas = {}
+        #Dados da lista de conversas, no estilo dos contatos recentes.
+        self.ultima_conversa = {}
+        self.nao_lidas = set()
+        self.historico_verificado = set()
+        self._dono_contatos = None
         self.mensagens_vistas = set()
         self._atualizando_contatos = False
         self.montar()
@@ -86,11 +92,7 @@ class TelaChat(tk.Frame):
                                        fundo=CORES["areia"], prefixo="⌕")
         campo_busca.pack(fill="x", expand=True)
         self.campo_busca = campo_busca.entrada
-        self._busca_placeholder = "Buscar conversa..."
-        self._busca_placeholder_ativo = False
-        self.campo_busca.bind("<FocusIn>", self._limpar_busca_placeholder)
-        self.campo_busca.bind("<FocusOut>", self._restaurar_busca_placeholder)
-        self._restaurar_busca_placeholder()
+        campo_busca.definir_dica("Buscar conversa...")
         self.busca.trace_add("write", lambda *_: self.atualizar_lista())
         #Mensagem discreta apenas quando a pesquisa não encontra conversas.
         self.aviso_busca = tk.Label(lateral, text="", bg=CORES["areia"],
@@ -129,15 +131,13 @@ class TelaChat(tk.Frame):
         ids = tk.Frame(rodape, bg=CORES["painel"])
         ids.pack(fill="x", pady=(0, 8))
         tk.Label(ids, text="Meu ID:", bg=CORES["painel"], fg=CORES["secundario"]).pack(side="left")
-        campo_id = CampoArredondado(ids, variavel=self.remetente, fundo=CORES["painel"])
+        campo_id = CampoArredondado(ids, variavel=self.remetente, fundo=CORES["painel"], largura=90)
         campo_id.pack(side="left", padx=(8, 15), ipadx=0)
-        campo_id.configure(width=150)
-        self._configurar_placeholder(campo_id.entrada, "Digite seu ID...")
+        campo_id.definir_dica("Digite seu ID...")
         self.label_destino = tk.Label(ids, text="ID destinatário:", bg=CORES["painel"], fg=CORES["secundario"])
         self.campo_destino = CampoArredondado(ids, variavel=self.destinatario,
-                                               fundo=CORES["painel"])
-        self.campo_destino.configure(width=190)
-        self._configurar_placeholder(self.campo_destino.entrada, "Digite o ID do destinatário...")
+                                               fundo=CORES["painel"], largura=150)
+        self.campo_destino.definir_dica("Digite o ID...")
         linha = tk.Frame(rodape, bg=CORES["painel"])
         linha.pack(fill="x")
         campo_mensagem = CampoArredondado(linha, fundo=CORES["painel"])
@@ -145,68 +145,59 @@ class TelaChat(tk.Frame):
         self.entrada = campo_mensagem.entrada
         #Envia a mensagem com Enter.
         self.entrada.bind("<Return>", lambda evento: (self.preparar(), "break")[1])
-        #Placeholder da mensagem sem alterar o conteúdo enviado.
-        self._placeholder = "Digite sua mensagem..."
-        self._placeholder_ativo = False
-        self.entrada.bind("<FocusIn>", self._limpar_placeholder)
-        self.entrada.bind("<KeyPress>", self._digitar_mensagem, add="+")
-        self.entrada.bind("<FocusOut>", self._restaurar_placeholder)
-        self._restaurar_placeholder()
+        #A dica fica sobre o campo e nunca entra na mensagem.
+        campo_mensagem.definir_dica("Digite sua mensagem...")
         self.botao(linha, "Enviar", self.preparar).pack(side="right", padx=(0, 2))
         tk.Label(self, textvariable=self.aviso, bg=CORES["painel"], fg=CORES["secundario"],
                  font=("Helvetica Neue", 10), wraplength=650).pack(pady=(0, 8))
         self.selecionar("geral")
 
-    def _limpar_busca_placeholder(self, _evento=None):
-        #Remove o texto de orientação ao iniciar a busca.
-        if self._busca_placeholder_ativo:
-            self._busca_placeholder_ativo = False
-            self.busca.set("")
-            self.campo_busca.configure(fg=CORES["texto"])
-
-    def _restaurar_busca_placeholder(self, _evento=None):
-        #Restaura a dica quando o campo estiver vazio.
-        if not self.busca.get().strip():
-            self._busca_placeholder_ativo = True
-            self.busca.set(self._busca_placeholder)
-            self.campo_busca.configure(fg="#8B857C")
-
     def atualizar_lista(self):
-        #Mostra os contatos com conversas privadas identificadas.
-        termo = "" if self._busca_placeholder_ativo else self.busca.get().strip().lower()
+        #Mostra os contatos com conversa, do mais recente para o mais antigo.
+        termo = self.busca.get().strip().lower()
         for filho in self.lista_conversas.winfo_children():
             filho.destroy()
         contatos = [(uid, nome) for uid, nome in self.conversas.items()
                     if not termo or termo in nome.lower() or termo in str(uid)]
-        if self.tipo == "privada":
-            for uid, nome in contatos:
-                #Destaca a conversa aberta e alinha o contato à esquerda.
-                ativo = str(uid) == self.destinatario.get().strip()
-                cor = "#B58C68" if ativo else CORES["selecao"]
-                botao = tk.Canvas(self.lista_conversas, height=36, bg=CORES["areia"],
-                                  highlightthickness=0, bd=0, cursor="hand2")
-                botao.pack(fill="x", pady=3)
-                def desenhar(evento, canvas=botao, texto=f"{nome} (ID {uid})",
-                            selecionado=ativo, fundo=cor):
-                    canvas.delete("all")
-                    retangulo_arredondado(canvas, 1, 1, evento.width - 1, evento.height - 1,
-                                         10, fill=fundo, outline="")
-                    if selecionado:
-                        canvas.create_text(13, evento.height / 2, text="│", anchor="w",
-                                           fill="#FFFFFF", font=("Helvetica Neue", 12, "bold"))
-                    canvas.create_text(29 if selecionado else 16, evento.height / 2,
-                                       text=texto, anchor="w",
-                                       fill="#FFFFFF" if selecionado else CORES["verde"],
-                                       font=("Helvetica Neue", 11, "bold"))
-                botao.bind("<Configure>", desenhar)
-                botao.bind("<Button-1>", lambda _evento, i=uid: self.abrir_conversa(i))
-        encontrou = bool(contatos) if self.tipo == "privada" else "conversa geral".find(termo) >= 0
+        contatos.sort(key=lambda item: self.ultima_conversa.get(item[0], (0,)), reverse=True)
+        if not self.conversas and not termo:
+            tk.Label(self.lista_conversas, text="Suas conversas privadas aparecerão aqui.",
+                     bg=CORES["areia"], fg=CORES["secundario"], font=("Helvetica Neue", 10),
+                     wraplength=190, justify="left").pack(anchor="w", padx=4, pady=4)
+        for uid, nome in contatos:
+            #Destaca a conversa aberta e alinha o contato à esquerda.
+            ativo = str(uid) == self.destinatario.get().strip()
+            cor = "#B58C68" if ativo else CORES["selecao"]
+            botao = tk.Canvas(self.lista_conversas, height=36, bg=CORES["areia"],
+                              highlightthickness=0, bd=0, cursor="hand2")
+            botao.pack(fill="x", pady=3)
+            def desenhar(evento, canvas=botao, texto=f"{nome} (ID {uid})",
+                        selecionado=ativo, fundo=cor, nova=uid in self.nao_lidas):
+                canvas.delete("all")
+                retangulo_arredondado(canvas, 1, 1, evento.width - 1, evento.height - 1,
+                                     10, fill=fundo, outline="")
+                if selecionado:
+                    canvas.create_text(13, evento.height / 2, text="│", anchor="w",
+                                       fill="#FFFFFF", font=("Helvetica Neue", 12, "bold"))
+                canvas.create_text(29 if selecionado else 16, evento.height / 2,
+                                   text=texto, anchor="w",
+                                   fill="#FFFFFF" if selecionado else CORES["verde"],
+                                   font=("Helvetica Neue", 11, "bold"))
+                if nova and not selecionado:
+                    #Marca conversas com mensagens não lidas.
+                    y = evento.height / 2
+                    canvas.create_oval(evento.width - 20, y - 4, evento.width - 12, y + 4,
+                                       fill=CORES["caramelo"], outline="")
+            botao.bind("<Configure>", desenhar)
+            botao.bind("<Button-1>", lambda _evento, i=uid: self.abrir_conversa(i))
+        encontrou = bool(contatos) or (self.tipo == "geral" and "conversa geral".find(termo) >= 0)
         self.aviso_busca.configure(text="Nenhuma conversa encontrada." if termo and not encontrou else "")
 
     def abrir_conversa(self, uid):
         #Seleciona o destinatário sem exigir a digitação do ID.
         if self.tipo != "privada":
             self.selecionar("privada")
+        self.nao_lidas.discard(uid)
         self.destinatario.set(str(uid))
         self.historico_carregado.discard((self.aplicacao.conexao.id_usuario, str(uid)))
         self.mensagens_vistas.clear()
@@ -222,6 +213,14 @@ class TelaChat(tk.Frame):
         self._atualizando_contatos = True
         app = self.aplicacao
         usuario = app.conexao.id_usuario
+        #Limpa as conversas quando outro usuário faz login.
+        if self._dono_contatos != usuario:
+            self._dono_contatos = usuario
+            self.conversas.clear()
+            self.ultima_conversa.clear()
+            self.nao_lidas.clear()
+            self.historico_verificado.clear()
+        verificados = set(self.historico_verificado)
         def tarefa():
             codigo, campos = app.conexao.requisitar(128, usuario)
             if codigo != 129:
@@ -231,19 +230,52 @@ class TelaChat(tk.Frame):
             if codigo != 65:
                 raise ErroConexao("Resposta inesperada ao consultar amigos.")
             nomes = {int(amigos[i]): amigos[i+1] for i in range(0, len(amigos), 2)}
-            return ids, nomes
+            #Consulta o histórico de cada amigo uma única vez por login.
+            com_historico = {}
+            for uid in nomes:
+                if uid in verificados:
+                    continue
+                codigo, mensagens = app.conexao.requisitar(4096, usuario, uid)
+                if codigo != 4097:
+                    raise ErroConexao("Resposta inesperada ao consultar histórico.")
+                if len(mensagens) >= 5:
+                    com_historico[uid] = self._momento(mensagens[-4], mensagens[-3], mensagens[-2])
+            return ids, nomes, com_historico
         def concluir(resposta, erro):
             self._atualizando_contatos = False
             if erro or usuario != app.conexao.id_usuario:
                 return
-            ids, nomes = resposta
+            ids, nomes, com_historico = resposta
+            self.historico_verificado.update(nomes)
+            for uid, momento in com_historico.items():
+                self.conversas[uid] = nomes[uid]
+                self._registrar_conversa(uid, momento)
+            self.nao_lidas = set(ids)
             for uid in ids:
                 self.conversas[uid] = nomes.get(uid, f"Usuário {uid}")
+                self._registrar_conversa(uid)
             for uid in list(self.conversas):
                 if uid in nomes:
                     self.conversas[uid] = nomes[uid]
             self.atualizar_lista()
         self.executar_rede(tarefa, concluir)
+
+    @staticmethod
+    def _momento(data, hora, minuto):
+        #Converte data e horário do protocolo em uma chave de ordenação.
+        try:
+            dia, mes, ano = (int(parte) for parte in data.split("/"))
+            return (ano, mes, dia, int(hora), int(minuto))
+        except ValueError:
+            return (0,)
+
+    def _registrar_conversa(self, uid, momento=None):
+        #Guarda o horário mais recente de cada conversa.
+        if momento is None:
+            agora = datetime.now()
+            momento = (agora.year, agora.month, agora.day, agora.hour, agora.minute)
+        if momento > self.ultima_conversa.get(uid, (0,)):
+            self.ultima_conversa[uid] = momento
 
     def selecionar(self, tipo):
         #Atualiza as abas sem recriar a janela.
@@ -263,62 +295,17 @@ class TelaChat(tk.Frame):
             self.label_destino.pack_forget()
             self.campo_destino.pack_forget()
         self.busca.set("")
-        self._restaurar_busca_placeholder()
-        self.atualizar_lista()
         self.aviso.set("")
         self.atualizar_lista()
         if self.ativo:
             self.iniciar_consulta()
 
-    def _configurar_placeholder(self, entrada, texto):
-        #Mostra uma dica sem incluir o texto no comando enviado.
-        def entrar(_evento=None):
-            if entrada.get() == texto:
-                entrada.delete(0, "end")
-                entrada.configure(fg=CORES["texto"])
-
-        def sair(_evento=None):
-            if not entrada.get().strip():
-                entrada.delete(0, "end")
-                entrada.insert(0, texto)
-                entrada.configure(fg="#8B857C")
-
-        entrada.bind("<FocusIn>", entrar, add="+")
-        entrada.bind("<FocusOut>", sair, add="+")
-        sair()
-
-    def _limpar_placeholder(self, _evento=None):
-        if self._placeholder_ativo or self.entrada.get() == self._placeholder:
-            self.entrada.delete(0, "end")
-            self._placeholder_ativo = False
-        self.entrada.configure(fg=CORES["texto"])
-
-    def _digitar_mensagem(self, evento):
-        #Garante texto escuro mesmo quando o foco não dispara no macOS.
-        if self._placeholder_ativo or self.entrada.get() == self._placeholder:
-            self._limpar_placeholder()
-        self.entrada.configure(fg=CORES["texto"])
-
-    def _restaurar_placeholder(self, _evento=None):
-        if not self.entrada.get().strip():
-            self.entrada.delete(0, "end")
-            self.entrada.insert(0, self._placeholder)
-            self.entrada.configure(fg="#8B857C")
-            self._placeholder_ativo = True
-
     def preparar(self):
         if self.enviando:
             return
         #Prepara o comando sem transmitir mensagens ao servidor.
-        origem = self.remetente.get().strip()
-        if origem == "Digite seu ID...":
-            origem = ""
         destino = self.destinatario.get().strip() if self.tipo == "privada" else ""
-        if destino == "Digite o ID do destinatário...":
-            destino = ""
         mensagem = self.entrada.get().strip()
-        if self._placeholder_ativo or mensagem == self._placeholder:
-            mensagem = ""
         if not self.aplicacao or not self.aplicacao.conexao.id_usuario:
             self.aviso.set("Faça login antes de enviar mensagens.")
             return
@@ -350,8 +337,8 @@ class TelaChat(tk.Frame):
         threading.Thread(target=trabalho, daemon=True).start()
 
     def enviar(self, destino, mensagem):
+        #O campo segue ativo; o estado disabled escurece o fundo no macOS.
         self.enviando = True
-        self.entrada.configure(state="disabled")
         app = self.aplicacao
         usuario = app.conexao.id_usuario
         def tarefa():
@@ -360,17 +347,16 @@ class TelaChat(tk.Frame):
                 raise ErroConexao("O servidor não confirmou o envio.")
         def concluir(_, erro):
             self.enviando = False
-            self.entrada.configure(state="normal", fg=CORES["texto"])
             if erro:
                 self.aviso.set("Falha no envio: " + erro)
                 return
             #Não apaga uma mensagem nova escrita durante a requisição.
             if self.entrada.get().strip() == mensagem:
                 self.entrada.delete(0, "end")
-                self._restaurar_placeholder()
             if destino:
                 uid = int(destino)
                 self.conversas.setdefault(uid, f"Usuário {uid}")
+                self._registrar_conversa(uid)
                 self.atualizar_lista()
             self.aviso.set("Mensagem enviada.")
             self.consultar()
@@ -410,8 +396,6 @@ class TelaChat(tk.Frame):
         if not self.ativo or self.consultando or not self.aplicacao.conexao.id_usuario:
             return
         destino = self.destinatario.get().strip() if self.tipo == "privada" else ""
-        if destino == "Digite o ID do destinatário...":
-            destino = ""
         if self.tipo == "privada" and (not destino.isdigit() or int(destino) <= 0):
             self.agendar_consulta()
             return
@@ -431,12 +415,18 @@ class TelaChat(tk.Frame):
                 self.aviso.set("Falha na consulta: " + erro)
             elif usuario == app.conexao.id_usuario and self.ativo:
                 atual = self.destinatario.get().strip() if self.tipo == "privada" else ""
-                if atual == "Digite o ID do destinatário...":
-                    atual = ""
                 if atual == destino:
                     if historico:
                         self.historico_carregado.add(chave)
                     self.mostrar_mensagens(campos, historico)
+                    #Leva a conversa aberta ao topo quando chegam mensagens.
+                    if destino and campos:
+                        grupo = campos[-5:]
+                        data, hora, minuto = (grupo[1:4] if historico else grupo[2:5])
+                        uid = int(destino)
+                        if uid in self.conversas:
+                            self._registrar_conversa(uid, self._momento(data, hora, minuto))
+                            self.atualizar_lista()
             self.agendar_consulta()
         self.executar_rede(tarefa, concluir)
 

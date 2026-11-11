@@ -52,7 +52,6 @@ class TelaAmizades(tk.Frame):
         campo_busca = CampoArredondado(lateral, variavel=self.busca, fundo=CORES["bege"], prefixo="⌕")
         campo_busca.pack(fill="x", padx=14, pady=(0, 14))
         self.campo_busca = campo_busca
-        self._placeholder(campo_busca.entrada)
         self.busca.trace_add("write", lambda *_: self.atualizar())
         #Aviso de pesquisa sem correspondência, sem cartão.
         self.aviso_busca = tk.Label(lateral, text="", bg=CORES["bege"],
@@ -81,23 +80,6 @@ class TelaAmizades(tk.Frame):
         self.mensagem.pack(pady=(8, 0))
         self.selecionar("usuarios")
 
-    def _placeholder(self, entrada):
-        #Exibe a dica da aba atual sem afetar a pesquisa.
-        def foco(_evento=None):
-            if entrada.get() == self.dica_busca:
-                entrada.delete(0, "end")
-                entrada.configure(fg=CORES["texto"])
-
-        def sair(_evento=None):
-            if not entrada.get().strip():
-                entrada.delete(0, "end")
-                entrada.insert(0, self.dica_busca)
-                entrada.configure(fg="#8B857C")
-
-        entrada.bind("<FocusIn>", foco, add="+")
-        entrada.bind("<FocusOut>", sair, add="+")
-        sair()
-
     def selecionar(self, aba):
         if aba not in self.botoes:
             return
@@ -113,9 +95,8 @@ class TelaAmizades(tk.Frame):
         self.titulo.configure(text=titulos[aba][0])
         self.subtitulo.configure(text=titulos[aba][1])
         self.busca.set("")
-        self.campo_busca.entrada.delete(0, "end")
-        self.campo_busca.entrada.insert(0, self.dica_busca)
-        self.campo_busca.entrada.configure(fg="#8B857C")
+        #A dica fica sobre o campo e não entra na pesquisa.
+        self.campo_busca.definir_dica(self.dica_busca)
         self.atualizar()
         if self.ativo:
             self.consultar()
@@ -123,8 +104,6 @@ class TelaAmizades(tk.Frame):
     def atualizar(self):
         #Filtra somente a lista correspondente à aba selecionada.
         termo = self.busca.get().strip().lower()
-        if termo == self.dica_busca.lower():
-            termo = ""
         for filho in self.resultados.winfo_children():
             filho.destroy()
         if self.aba == "usuarios":
