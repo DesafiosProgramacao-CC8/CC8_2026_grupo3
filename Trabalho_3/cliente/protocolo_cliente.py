@@ -36,13 +36,14 @@ def criar_mensagem(codigo, *parametros):
         return s.isascii() and s.isdecimal() and int(s) > 0
     if codigo in (32, 128, 8192) and not id_valido(campos[0]):
         raise ErroProtocolo("ID inválido.")
-    if codigo in (256, 512, 4096) and not all(map(id_valido, campos)):
+    if codigo in (256, 512) and not all(map(id_valido, campos)):
         raise ErroProtocolo("IDs inválidos.")
     if codigo == 64 and (not id_valido(campos[0]) or campos[1] not in ('0', '1')):
         raise ErroProtocolo("Lista de usuários inválida.")
     if codigo == 258 and (not all(map(id_valido, campos[:2])) or campos[2] not in ('VERDADEIRO', 'FALSO')):
         raise ErroProtocolo("Resposta de amizade inválida.")
-    if codigo in (1024, 2048) and (not id_valido(campos[0]) or (campos[1] and not id_valido(campos[1]))):
+    #No 4096, destino vazio pede o histórico da geral.
+    if codigo in (1024, 2048, 4096) and (not id_valido(campos[0]) or (campos[1] and not id_valido(campos[1]))):
         raise ErroProtocolo("ID inválido.")
     if codigo == 2048 and not campos[2].strip():
         raise ErroProtocolo("Mensagem vazia.")

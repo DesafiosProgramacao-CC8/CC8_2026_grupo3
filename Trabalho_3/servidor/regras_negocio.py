@@ -209,6 +209,24 @@ class RegrasNegocio:
         ))
         return mensagens
 
+    def enviar_mensagem_geral(self, id_usuario, texto):
+        #Grava a mensagem geral para quem entrar depois.
+        texto = validar_texto(texto, "mensagem")
+        agora = datetime.now()
+        registro = self.banco.inserir("MensagemGeral", [
+            id_usuario, agora.strftime("%d/%m/%Y"), agora.hour, agora.minute, texto,
+        ])
+        registro["remetente"] = id_usuario
+        return registro
+
+    def pegar_historico_geral(self, limite=200):
+        #Devolve as últimas mensagens gerais, da mais antiga para a mais recente.
+        mensagens = self.banco.listar("MensagemGeral")
+        for mensagem in mensagens:
+            mensagem["remetente"] = mensagem["id_usuario"]
+        mensagens.sort(key=lambda m: m["id"])
+        return mensagens[-limite:]
+
     def pegar_mensagens(self, id_usuario, id_amigo):
         amizade = self.exigir_amizade(id_usuario, id_amigo)
         historico = self.pegar_historico(id_usuario, id_amigo)

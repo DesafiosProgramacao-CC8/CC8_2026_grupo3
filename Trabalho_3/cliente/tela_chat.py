@@ -61,6 +61,8 @@ class TelaChat(tk.Frame):
         self.historico_verificado = set()
         self._dono_contatos = None
         self.mensagens_vistas = set()
+        #Cópia local da geral, no formato (remetente, texto, data, hora, minuto).
+        self.historico_geral = []
         self._atualizando_contatos = False
         self.montar()
 
@@ -220,6 +222,7 @@ class TelaChat(tk.Frame):
             self.ultima_conversa.clear()
             self.nao_lidas.clear()
             self.historico_verificado.clear()
+            self.historico_geral = []
         verificados = set(self.historico_verificado)
         def tarefa():
             codigo, campos = app.conexao.requisitar(128, usuario)
@@ -286,6 +289,11 @@ class TelaChat(tk.Frame):
         self.area_mensagens.delete("1.0", "end")
         self.area_mensagens.insert("end", "")
         self.area_mensagens.configure(state="disabled")
+        #Redesenha a conversa ao voltar para a aba.
+        self.mensagens_vistas.clear()
+        self.historico_carregado.clear()
+        if tipo == "geral":
+            self.mostrar_mensagens([campo for grupo in self.historico_geral for campo in grupo])
         self.titulo.configure(text="Conversa geral" if tipo == "geral" else "Conversa privada")
         self.subtitulo.configure(text="Todos os usuários" if tipo == "geral" else "Conversa individual")
         if tipo == "privada":
@@ -403,7 +411,8 @@ class TelaChat(tk.Frame):
         app = self.aplicacao
         usuario = app.conexao.id_usuario
         chave = (usuario, destino)
-        historico = bool(destino and chave not in self.historico_carregado)
+        #O histórico é pedido na primeira consulta, inclusive da geral.
+        historico = chave not in self.historico_carregado
         def tarefa():
             codigo, campos = app.conexao.requisitar(4096 if historico else 1024, usuario, destino)
             if codigo != (4097 if historico else 1025):
@@ -413,9 +422,13 @@ class TelaChat(tk.Frame):
             self.consultando = False
             if erro:
                 self.aviso.set("Falha na consulta: " + erro)
-            elif usuario == app.conexao.id_usuario and self.ativo:
+            elif usuario == app.conexao.id_usuario and not destino:
+                #Guarda a geral mesmo se a aba mudou durante a consulta.
+                self._guardar_geral(campos, historico)
+            if not erro and usuario == app.conexao.id_usuario and self.ativo:
                 atual = self.destinatario.get().strip() if self.tipo == "privada" else ""
-                if atual == destino:
+                #Evita mostrar a geral dentro da aba privada.
+                if atual == destino and (destino or self.tipo == "geral"):
                     if historico:
                         self.historico_carregado.add(chave)
                     self.mostrar_mensagens(campos, historico)
@@ -429,6 +442,24 @@ class TelaChat(tk.Frame):
                             self.atualizar_lista()
             self.agendar_consulta()
         self.executar_rede(tarefa, concluir)
+
+    def _guardar_geral(self, campos, historico):
+        #Junta o histórico do servidor com as mensagens novas, sem repetir.
+        grupos = []
+        for indice in range(0, len(campos), 5):
+            grupo = campos[indice:indice + 5]
+            if historico:
+                remetente, data, hora, minuto, texto = grupo
+                grupo = [remetente, texto, data, hora, minuto]
+            grupos.append(tuple(grupo))
+        if historico:
+            recebidos = set(grupos)
+            grupos += [grupo for grupo in self.historico_geral if grupo not in recebidos]
+            self.historico_geral = grupos
+        else:
+            existentes = set(self.historico_geral)
+            self.historico_geral += [grupo for grupo in grupos if grupo not in existentes]
+        del self.historico_geral[:-500]
 
     def agendar_consulta(self):
         if not self.ativo or self._consulta_agendada:

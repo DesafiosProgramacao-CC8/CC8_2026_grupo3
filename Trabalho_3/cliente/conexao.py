@@ -4,7 +4,9 @@ import socket
 import threading
 
 TERMINADOR = "#\n"
-LIMITE_BYTES = 4096
+# O histórico reúne até 200 mensagens, cada uma enviada em até 4 KiB.
+# 1 MiB comporta esse conjunto e os campos de data/hora da resposta.
+LIMITE_BYTES = 1024 * 1024
 from protocolo_cliente import criar_mensagem, interpretar_resposta, ErroProtocolo
 
 

@@ -131,8 +131,15 @@ def validar_parametros(codigo, parametros):
         )
 
     # Operacoes com dois IDs.
-    if codigo in (256, 512, 4096):
+    if codigo in (256, 512):
         return all(id_valido(p) for p in parametros)
+
+    #Histórico: segundo ID vazio indica a conversa geral.
+    if codigo == 4096:
+        return (
+            id_valido(parametros[0])
+            and (parametros[1] == "" or id_valido(parametros[1]))
+        )
 
     # Responder solicitacao de amizade.
     if codigo == 258:

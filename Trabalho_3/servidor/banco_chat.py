@@ -37,12 +37,20 @@ class BancoChat:
             salvar_banco(self.banco, self.caminho)
 
     def _conferir_estrutura(self, modelo):
+        criadas = False
         for nome, tabela in modelo.tabelas.items():
+            #Cria tabelas novas em bancos antigos sem apagar os dados.
+            if not self.banco.existe_tabela(nome):
+                self.banco.adicionar_tabela(tabela)
+                criadas = True
+                continue
             existente = self.banco.buscar_tabela(nome)
             esperado = [(c.nome, type(c.tipo), c.chave_estrangeira) for c in tabela.colunas]
             recebido = [(c.nome, type(c.tipo), c.chave_estrangeira) for c in existente.colunas]
             if recebido != esperado:
                 raise ErroIFFARQL(f"Estrutura incompatível na tabela {nome}")
+        if criadas:
+            salvar_banco(self.banco, self.caminho)
 
     def executar(self, operacao, *argumentos):
         # Trabalho em uma cópia para não deixar uma alteração pela metade

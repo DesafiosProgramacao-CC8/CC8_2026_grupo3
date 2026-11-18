@@ -103,12 +103,14 @@ class ServicoChat:
 
         if codigo == 2048:
             if parametros[1] == "":
-                texto = validar_texto(parametros[2], "mensagem")
-                agora = datetime.now()
+                #Salva no banco e mantém a entrega imediata para quem está online.
+                registro = self.banco.executar(
+                    self.regras.enviar_mensagem_geral, id_usuario, parametros[2],
+                )
                 mensagem = {
-                    "remetente": id_usuario, "mensagem": texto,
-                    "data": agora.strftime("%d/%m/%Y"),
-                    "hora": agora.hour, "minuto": agora.minute,
+                    "remetente": id_usuario, "mensagem": registro["mensagem"],
+                    "data": registro["data"], "hora": registro["hora"],
+                    "minuto": registro["minuto"],
                 }
                 # Só quem está online no momento recebe a mensagem geral
                 for pendentes in self.mensagens_gerais.values():
@@ -131,9 +133,13 @@ class ServicoChat:
             return resposta_mensagens(1025, mensagens)
 
         if codigo == 4096:
-            mensagens = self.banco.executar(
-                self.regras.pegar_historico, id_usuario, int(parametros[1]),
-            )
+            #Destino vazio pede o histórico da conversa geral.
+            if parametros[1] == "":
+                mensagens = self.banco.executar(self.regras.pegar_historico_geral)
+            else:
+                mensagens = self.banco.executar(
+                    self.regras.pegar_historico, id_usuario, int(parametros[1]),
+                )
             return resposta_mensagens(4097, mensagens)
 
         if codigo == 8192:
